@@ -43,7 +43,32 @@ Aplicación Android 100 % nativa con Kotlin, Jetpack Compose y Material 3.
 - Finalización de una serie recurrente completa y programación de recordatorios tras reinicios o cambios de hora.
 - El dashboard muestra tareas próximas reales, permite abrir el editor y refleja las actualizaciones de Room.
 
-Las tablas siguen siendo registros iniciales por título. Celdas, columnas, fórmulas, calendario interactivo, notificaciones de tablas y sincronización corresponden a etapas posteriores. La actividad no se reconstruye para datos anteriores a la Etapa 2.
+### Etapa 5: tablas dinámicas
+
+- Crear, editar, duplicar y eliminar tablas con nombre, descripción, icono y color.
+- Columna principal «Nombre» y columnas configurables: texto corto/largo, entero, decimal, moneda, fecha, fecha-hora, casilla, selección, selección múltiple, estado, URL, correo y teléfono.
+- Opciones con nombre y color, campos obligatorios, valores predeterminados y conversión de tipos con validación para evitar pérdida de datos.
+- Crear, editar, duplicar y eliminar registros; editores de celdas por tipo y panel de edición de registro.
+- Búsqueda por contenido y nombres de opciones, filtros combinados, ordenación y páginas de 50 registros.
+- Vista de cuadrícula con desplazamiento horizontal compartido y vista de tarjetas.
+- Dashboard con contador real de tablas, registros recientes y navegación desde la actividad.
+- Room v6 con entidades compartidas para tablas, columnas, opciones, registros y celdas. La migración 5→6 conserva las tablas anteriores y añade su columna principal.
+- Las consultas SQL directas de paginación se ejecutan en `Dispatchers.IO`; al duplicar una tabla se reasignan las opciones tanto de las celdas como de los valores predeterminados.
+
+### Etapa 6: calendario y recordatorios
+
+- Acceso desde la barra superior y desde la tarjeta de próximos siete días del dashboard, conservando los cinco destinos inferiores.
+- Vistas mensual, semanal por horas con carriles para actividades superpuestas y agenda diaria cronológica.
+- Selección de fecha, navegación de periodos, selector de mes/año, botón Hoy e indicadores de actividades. Fechas e inicio de semana según la configuración regional.
+- CRUD de eventos con título, descripción, inicio/final, día completo, color, categoría y confirmación al eliminar.
+- Tareas existentes proyectadas desde `TaskRepository`, con estado, prioridad y apertura de su editor; no se copian a eventos.
+- Recurrencias diarias, semanales y mensuales, fecha final inclusiva y excepciones para editar/eliminar una ocurrencia. Editar toda la serie restablece sus excepciones, con aviso en el editor.
+- Recordatorios al momento, 5/10/15/30 minutos, 1 hora o 1 día antes; permiso contextual de notificaciones y WorkManager con reemplazo, cancelación y recuperación del aviso pendiente.
+- Room v7 y migración aditiva 6→7. Datos locales sin internet, series ancladas a una zona horaria y duraciones civiles para día completo durante cambios de horario de verano.
+
+Contrato de recurrencias, decisiones de recordatorios y archivos de la etapa: [docs/ETAPA_6.md](docs/ETAPA_6.md).
+
+Las fórmulas, las notificaciones de tablas y la sincronización corresponden a etapas posteriores. La actividad no se reconstruye para datos anteriores a la Etapa 2.
 
 ## Arquitectura
 
@@ -57,13 +82,18 @@ Código en `app/src/main/java/com/example/nexonote/`:
 | `domain/model/Models.kt` | Elementos, prioridades, actividad y preferencias. |
 | `domain/model/Notes.kt` | Notas, tipos, colores, checklist, etiquetas y borradores. |
 | `domain/model/Tasks.kt` | Tareas, subtareas, filtros, validación, recurrencias y fechas. |
-| `domain/repository/Repositories.kt` | Contratos de elementos, notas, tareas, actividad y ajustes. |
+| `domain/model/Tables.kt` | Tipos de columnas, filtros, validación, normalización y formato de celdas. |
+| `domain/repository/Repositories.kt` | Contratos de elementos, notas, tareas, tablas, actividad y ajustes. |
 | `domain/reminder/ReminderScheduler.kt` | Contrato de programación y cancelación de recordatorios. |
-| `data/local/NexoDatabase.kt` | Entidades, consultas reactivas, transacciones y esquema Room v5. |
-| `data/local/DatabaseMigrations.kt` | Migraciones explícitas 1→2, 2→3, 3→4 y 4→5. |
+| `data/local/NexoDatabase.kt` | Entidades, consultas reactivas, transacciones y esquema Room v7. |
+| `data/local/DatabaseMigrations.kt` | Migraciones explícitas 1→2, 2→3, 3→4, 4→5 y 5→6. |
+| `data/local/EventDao.kt`, `data/local/EventMigration.kt` | Eventos, excepciones, estado persistente de avisos, DAO con Flow y migración 6→7. |
+| `domain/model/Events.kt`, `domain/repository/EventRepository.kt` | Fechas, recurrencias, integración de tareas, carriles y contratos. |
+| `data/repository/LocalEventRepository.kt` | Transacciones de eventos y reconciliación de recordatorios. |
 | `data/repository/LocalEntryRepository.kt` | Elementos y actividad persistidos, validación y mapeo. |
 | `data/repository/LocalNoteRepository.kt` | Guardado transaccional de notas, checklist, etiquetas y ciclo de vida. |
 | `data/repository/LocalTaskRepository.kt` | Tareas, subtareas, etiquetas, recurrencias y recordatorios transaccionales. |
+| `data/repository/LocalTableRepository.kt` | Tablas, columnas, opciones, registros, celdas y consultas paginadas. |
 | `data/repository/DataStoreSettingsRepository.kt` | Tema y nombre visible. |
 | `reminder/` | Worker de WorkManager, notificaciones, scheduler y reprogramación tras reinicio. |
 | `navigation/Destination.kt` | Rutas, etiquetas e iconos de los cinco destinos y editor de tareas. |
@@ -83,7 +113,9 @@ Código en `app/src/main/java/com/example/nexonote/`:
 | `ui/tasks/TaskListScreen.kt` | Listado adaptable, filtros, búsqueda y confirmaciones. |
 | `ui/tasks/TaskEditorViewModel.kt` | Carga, edición, validación, recordatorios y recurrencias. |
 | `ui/tasks/TaskEditorScreen.kt` | Editor de tareas, fechas, etiquetas y subtareas. |
-| `ui/screens/Screens.kt` | Colección de tablas y Ajustes. |
+| `ui/tables/` | Listado y detalle, ViewModels, estados, filtros y editores de columnas, opciones y celdas. |
+| `ui/calendar/` | CalendarViewModel, calendario, tarjeta de dashboard y editor de eventos. |
+| `ui/screens/Screens.kt` | Pantallas compartidas y Ajustes. |
 | `ui/theme/` | Temas claro/oscuro y tipografía Compose. |
 
 Flujo: **UI → ViewModel → contratos Repository → Room / DataStore / WorkManager**. Room emite cambios por Flow; el `DashboardViewModel` los combina con notas, tareas, actividad, nombre y reloj para producir un `DashboardUiState` inmutable. La UI no accede a DAOs ni usa datos simulados. Las transacciones de Room insertan la nota o tarea, su fila resumen en `entries`, el evento de actividad, las relaciones y las subtareas de forma atómica. El scheduler de recordatorios se invoca después de confirmar la transacción.
@@ -105,7 +137,7 @@ Dependencias principales: Navigation Compose 2.9.7, Room 2.8.4 con KSP 2.3.4, Wo
 5. Crear un emulador o conectar un dispositivo con Android 7.0 / API 24 o posterior.
 6. Seleccionar **app** y pulsar **Run**.
 
-Las bases de las etapas anteriores migran automáticamente a la versión 5. En Android 13 o posterior, acepta el permiso de notificaciones para recibir recordatorios de tareas.
+Las bases de las etapas anteriores migran automáticamente a la versión 7. En Android 13 o posterior, acepta el permiso de notificaciones para recibir recordatorios de tareas y eventos. WorkManager ofrece avisos diferibles: Android puede retrasarlos por ahorro de batería; no se promete entrega exacta.
 
 ## Verificación
 
@@ -121,4 +153,8 @@ Desde PowerShell en la raíz:
 
 Las pruebas cubren cálculo de progreso sin tareas, estadísticas, ordenación de notas/tareas/actividad, filtros y búsqueda, autoguardado y salida segura, errores y reintentos, guardado del nombre, creación y actualización transaccional de notas, checklist/etiquetas, papelera, migraciones 1→5, validación y recurrencia de tareas, recordatorios, subtareas, flujo completo de creación/edición/búsqueda/finalización/borrado de tareas, acciones rápidas, actualización reactiva tras cambios en Room y navegación entre temas. Se ejecutaron en el emulador `Medium_Phone_API_37.0`.
 
-Estado verificado: 31 pruebas unitarias y 19 pruebas instrumentadas aprobadas, lint sin errores.
+Las pruebas de tablas cubren normalización y validación, migración 5→6, CRUD, filtros, ordenación, paginación, conversión de tipos, duplicado independiente con opciones y valores predeterminados, y carga de registros invocada desde el hilo principal.
+
+Las pruebas del calendario cubren validación, límites mensuales, años bisiestos, horario de verano, zonas horarias, inicio regional de semana, superposiciones, tareas, excepciones, CRUD, reapertura de base, migración 6→7, avisos simultáneos/retrasados, deduplicación y programación/cancelación real de trabajos WorkManager. La prueba Compose crea, edita y elimina un evento, cambia de vista y abre una tarea.
+
+Estado verificado de Etapa 6: **51 pruebas unitarias y 37 instrumentadas aprobadas**, compilación debug correcta y lint con **0 errores, 24 advertencias preexistentes**. Detalles y alcance de verificación: [docs/ETAPA_6.md](docs/ETAPA_6.md).

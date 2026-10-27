@@ -4,6 +4,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CalendarMonth
+import com.example.nexonote.ui.calendar.CalendarViewModel
+import com.example.nexonote.ui.calendar.CalendarRoute
+import com.example.nexonote.ui.calendar.CalendarDashboardCard
 import androidx.compose.ui.platform.testTag
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -46,12 +51,16 @@ fun NexoNoteApp(
     tableDetailFactory: (Long) -> ViewModelProvider.Factory,
     pendingTaskId: Long? = null,
     onPendingTaskHandled: () -> Unit = {},
+    calendarFactory: ViewModelProvider.Factory? = null,
+    pendingEventDate: Long? = null,
+    onPendingEventHandled: () -> Unit = {},
 ) {
     val controller = rememberNavController()
     val backStack by controller.currentBackStackEntryAsState()
     val isEditor = backStack?.destination?.route == NoteRoutes.EDITOR ||
         backStack?.destination?.route == TaskRoutes.EDITOR ||
-        backStack?.destination?.route == TableRoutes.DETAIL
+        backStack?.destination?.route == TableRoutes.DETAIL ||
+        backStack?.destination?.route == "calendar?date={date}"
     val current = Destination.entries.firstOrNull { it.route == backStack?.destination?.route }
         ?: Destination.HOME
     val snackbar = remember { SnackbarHostState() }
@@ -89,10 +98,19 @@ fun NexoNoteApp(
             onPendingTaskHandled()
         }
     }
+    val openCalendar: () -> Unit = { controller.navigate("calendar") { launchSingleTop = true } }
+    LaunchedEffect(pendingEventDate) {
+        pendingEventDate?.let {
+            controller.navigate("calendar?date=$it") { launchSingleTop = true }
+            onPendingEventHandled()
+        }
+    }
     Scaffold(
         topBar = {
             if (!isEditor) {
-                TopAppBar(title = { Text(if (current == Destination.HOME) "NexoNote" else current.label) })
+                TopAppBar(title = { Text(if (current == Destination.HOME) "NexoNote" else current.label) }, actions = {
+                    if (calendarFactory != null) IconButton(onClick = openCalendar) { Icon(Icons.Outlined.CalendarMonth, "Abrir calendario") }
+                })
             }
         },
         snackbarHost = { SnackbarHost(snackbar) },
@@ -131,6 +149,12 @@ fun NexoNoteApp(
                     openNote = openNote,
                     openTask = openTask,
                     openTable = openTable,
+                    calendarContent = {
+                        if (calendarFactory != null) {
+                            val calendar: CalendarViewModel = viewModel(key = "dashboard_calendar", factory = calendarFactory)
+                            CalendarDashboardCard(calendar, openCalendar)
+                        }
+                    },
                 )
             }
             composable(Destination.NOTES.route) {
@@ -160,6 +184,13 @@ fun NexoNoteApp(
                 )
             }
             composable(Destination.SETTINGS.route) { SettingsScreen(state, model::setThemeMode) }
+            composable("calendar?date={date}", arguments = listOf(navArgument("date") { type = NavType.LongType; defaultValue = 0L })) { entry ->
+                if (calendarFactory != null) {
+                    val calendar: CalendarViewModel = viewModel(factory = calendarFactory)
+                    CalendarRoute(calendar, { controller.popBackStack() }, openTask,
+                        entry.arguments?.getLong("date")?.takeIf { it != 0L })
+                }
+            }
             composable(
                 route = NoteRoutes.EDITOR,
                 arguments = listOf(navArgument(NoteRoutes.NOTE_ID) { type = NavType.LongType }),

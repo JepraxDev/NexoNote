@@ -28,13 +28,16 @@ import com.example.nexonote.ui.theme.NexoNoteTheme
 class MainActivity : ComponentActivity() {
     companion object {
         const val EXTRA_TASK_ID = "com.example.nexonote.extra.TASK_ID"
+        const val EXTRA_EVENT_DATE = "com.example.nexonote.extra.EVENT_DATE"
     }
 
     private val pendingTaskId = mutableStateOf<Long?>(null)
+    private val pendingEventDate = mutableStateOf<Long?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         pendingTaskId.value = intent.taskIdExtra()
+        pendingEventDate.value = intent?.getLongExtra(EXTRA_EVENT_DATE, 0)?.takeIf { it != 0L }
         enableEdgeToEdge()
         val container = (application as NexoNoteApplication).container
         setContent {
@@ -78,6 +81,9 @@ class MainActivity : ComponentActivity() {
                     tableDetailFactory = tableDetailFactory,
                     pendingTaskId = pendingTaskId.value,
                     onPendingTaskHandled = { pendingTaskId.value = null },
+                    calendarFactory = remember(container) { com.example.nexonote.ui.calendar.CalendarViewModel.factory(container) },
+                    pendingEventDate = pendingEventDate.value,
+                    onPendingEventHandled = { pendingEventDate.value = null },
                 )
             }
         }
@@ -86,6 +92,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        pendingEventDate.value = intent.getLongExtra(EXTRA_EVENT_DATE, 0).takeIf { it != 0L }
         pendingTaskId.value = intent.taskIdExtra()
     }
 

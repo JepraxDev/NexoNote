@@ -37,6 +37,7 @@ fun DashboardRoute(
     openNote: (Long) -> Unit,
     openTask: (Long) -> Unit,
     openTable: (Long) -> Unit,
+    calendarContent: @Composable () -> Unit = {},
 ) {
     val state by model.uiState.collectAsStateWithLifecycle()
     DashboardScreen(
@@ -49,6 +50,7 @@ fun DashboardRoute(
         model::retry,
         model::saveName,
         model::clearNameError,
+        calendarContent,
     )
 }
 
@@ -63,6 +65,7 @@ fun DashboardScreen(
     retry: () -> Unit,
     saveName: (String, () -> Unit) -> Unit,
     clearNameError: () -> Unit,
+    calendarContent: @Composable () -> Unit = {},
 ) {
     var editingName by rememberSaveable { mutableStateOf(false) }
     var name by rememberSaveable { mutableStateOf("") }
@@ -136,6 +139,7 @@ fun DashboardScreen(
                     TaskProgressCard(state) { navigate(Destination.TASKS) }
                 }
                 item(key = "actions", span = { GridItemSpan(maxLineSpan) }) { QuickActions(create) }
+                item(key = "calendar", span = { GridItemSpan(maxLineSpan) }) { calendarContent() }
                 item(key = "recentNotes", span = { GridItemSpan(if (columns == 4) 2 else maxLineSpan) }) {
                     EntryListCard(
                         title = "Notas recientes",

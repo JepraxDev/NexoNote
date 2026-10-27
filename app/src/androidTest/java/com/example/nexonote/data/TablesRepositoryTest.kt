@@ -15,6 +15,8 @@ import com.example.nexonote.domain.model.TableQuery
 import com.example.nexonote.domain.model.TableSort
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
@@ -53,6 +55,17 @@ class TablesRepositoryTest {
         assertTrue(columns.single().required)
         assertEquals("Nombre", columns.single().name)
         assertEquals(ColumnType.SHORT_TEXT, columns.single().type)
+    }
+
+    @Test fun loadPageCanBeCalledFromMainThread() = runBlocking {
+        val tableId = repository.createTable(TableInput("Desde interfaz"))
+        withContext(Dispatchers.Main) {
+            assertTrue(repository.loadPage(tableId, TableQuery(), 50, 0).rows.isEmpty())
+        }
+        val rowId = repository.createRow(tableId)
+        withContext(Dispatchers.Main) {
+            assertEquals(rowId, repository.loadPage(tableId, TableQuery(), 50, 0).rows.single().id)
+        }
     }
 
     @Test fun rowsCellsOptionsFiltersSortAndPaginationWorkTogether() = runBlocking {
@@ -146,6 +159,7 @@ class TablesRepositoryTest {
         val tableId = repository.createTable(TableInput("Proyectos"))
         val statusId = repository.addColumn(tableId, ColumnInput("Estado", ColumnType.STATUS))
         val optionId = repository.addOption(statusId, OptionInput("En curso", "#2F5D8A"))
+        repository.updateColumn(statusId, ColumnInput("Estado", ColumnType.STATUS, defaultValue = optionId.toString()))
         val rowId = repository.createRow(tableId)
         repository.updateCell(rowId, repository.observeColumns(tableId).first().first().id, "NexoNote")
         repository.updateCell(rowId, statusId, optionId.toString())
@@ -160,6 +174,9 @@ class TablesRepositoryTest {
         assertEquals(1, copiedRows.size)
         assertEquals("NexoNote", copiedRows.single().title)
         assertEquals(copiedStatus.options.single().id.toString(), copiedRows.single().value(copiedStatus.id))
+        assertEquals(copiedStatus.options.single().id.toString(), copiedStatus.defaultValue)
+        val newCopiedRow = repository.createRow(copyId)
+        assertEquals(copiedStatus.defaultValue, repository.findRow(newCopiedRow)!!.value(copiedStatus.id))
 
         repository.deleteTable(copyId)
         assertNull(repository.findTable(copyId))

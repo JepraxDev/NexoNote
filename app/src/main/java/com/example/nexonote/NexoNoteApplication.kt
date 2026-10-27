@@ -10,5 +10,6 @@ class NexoNoteApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         ReminderNotifications.createChannel(this)
+        com.example.nexonote.reminder.EventRescheduleWorker.enqueue(this)
     }
 }

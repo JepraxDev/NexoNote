@@ -1,6 +1,10 @@
 package com.example.nexonote.di
 
 import android.content.Context
+import com.example.nexonote.data.local.MIGRATION_6_7
+import com.example.nexonote.data.repository.LocalEventRepository
+import com.example.nexonote.domain.repository.EventRepository
+import com.example.nexonote.reminder.WorkManagerEventScheduler
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.room.Room
 import com.example.nexonote.data.local.MIGRATION_1_2
@@ -30,7 +34,7 @@ class AppContainer(context: Context) {
     private val appContext = context.applicationContext
     private val database = Room.databaseBuilder(
         appContext, NexoDatabase::class.java, "nexonote.db"
-    ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6).build()
+    ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7).build()
     private val entryDao = database.entryDao()
     private val reminderScheduler: ReminderScheduler = WorkManagerReminderScheduler(appContext)
     val entryRepository: EntryRepository = LocalEntryRepository(entryDao)
@@ -38,5 +42,6 @@ class AppContainer(context: Context) {
     val noteRepository: NoteRepository = LocalNoteRepository(database)
     val taskRepository: TaskRepository = LocalTaskRepository(database, reminderScheduler)
     val tableRepository: TableRepository = LocalTableRepository(database)
+    val eventRepository: EventRepository = LocalEventRepository(database, WorkManagerEventScheduler(appContext))
     val settingsRepository: SettingsRepository = DataStoreSettingsRepository(appContext.settingsDataStore)
 }

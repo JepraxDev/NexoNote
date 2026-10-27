@@ -19,6 +19,7 @@ class ReminderRescheduleReceiver : BroadcastReceiver() {
             else -> return
         }
         val pending = goAsync()
+        EventRescheduleWorker.enqueue(context)
         val app = context.applicationContext as NexoNoteApplication
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {

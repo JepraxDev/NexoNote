@@ -744,6 +744,7 @@ interface TableDao {
 
 @Database(
     entities = [
+        EventEntity::class,
         EntryEntity::class,
         ActivityEntity::class,
         NoteEntity::class,
@@ -759,10 +760,11 @@ interface TableDao {
         CustomRowEntity::class,
         CustomCellEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = true,
 )
 abstract class NexoDatabase : RoomDatabase() {
+    abstract fun eventDao(): EventDao
     abstract fun entryDao(): EntryDao
     abstract fun noteDao(): NoteDao
     abstract fun taskDao(): TaskDao

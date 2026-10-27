@@ -39,6 +39,8 @@ import com.example.nexonote.domain.model.validateOptionInput
 import com.example.nexonote.domain.model.validateTableInput
 import com.example.nexonote.domain.repository.TableRepository
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
@@ -167,6 +169,17 @@ class LocalTableRepository(
                 options[column.id].orEmpty().forEach { option ->
                     val newOptionId = tableDao.insertOption(option.copy(id = 0, columnId = newColumnId))
                     optionMap[option.id] = newOptionId
+                }
+                if (column.type.toColumnType().usesOptions) {
+                    tableDao.updateColumn(
+                        column.copy(
+                            id = newColumnId,
+                            tableId = newId,
+                            defaultValue = column.defaultValue?.split(',')?.joinToString(",") { raw ->
+                                optionMap.getValue(raw.trim().toLong()).toString()
+                            },
+                        )
+                    )
                 }
             }
             val columnTypes = columns.associate { column ->
@@ -582,7 +595,7 @@ class LocalTableRepository(
         query: TableQuery,
         limit: Int,
         offset: Int,
-    ): TablePage {
+    ): TablePage = withContext(Dispatchers.IO) {
         val columns = tableDao.findColumns(tableId)
         val byId = columns.associateBy { it.id }
         val safeLimit = limit.coerceIn(1, 200)
@@ -728,7 +741,7 @@ class LocalTableRepository(
                 )
             }
         }
-        if (pageRows.isEmpty()) return TablePage(emptyList(), false)
+        if (pageRows.isEmpty()) return@withContext TablePage(emptyList(), false)
         val cells = tableDao.findCellsForRows(pageRows.map { it.id }).groupBy { it.rowId }
         val rows = pageRows.map { row ->
             TableRow(
@@ -742,7 +755,7 @@ class LocalTableRepository(
                 modifiedAt = row.modifiedAt,
             )
         }
-        return TablePage(rows, hasMore)
+        TablePage(rows, hasMore)
     }
 
     private suspend fun touch(tableId: Long, now: Long) {
