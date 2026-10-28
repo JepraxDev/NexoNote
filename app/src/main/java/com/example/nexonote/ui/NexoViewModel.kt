@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.nexonote.di.AppContainer
+import com.example.nexonote.domain.model.AccentColor
 import com.example.nexonote.domain.model.Entry
 import com.example.nexonote.domain.model.EntryType
 import com.example.nexonote.domain.model.ThemeMode
@@ -23,6 +24,8 @@ import kotlinx.coroutines.launch
 data class NexoUiState(
     val entries: List<Entry> = emptyList(),
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val accentColor: AccentColor = AccentColor.PURPLE,
+    val displayName: String = "",
     val loading: Boolean = true,
     val saving: Boolean = false,
     val error: String? = null,
@@ -33,8 +36,20 @@ class NexoViewModel(
     private val settings: SettingsRepository,
 ) : ViewModel() {
     private val operation = MutableStateFlow(NexoUiState())
-    val uiState = combine(entries.entries, settings.themeMode, operation) { items, theme, status ->
-        status.copy(entries = items, themeMode = theme, loading = false)
+    val uiState = combine(
+        entries.entries,
+        settings.themeMode,
+        settings.accentColor,
+        settings.displayName,
+        operation,
+    ) { items, theme, accent, name, status ->
+        status.copy(
+            entries = items,
+            themeMode = theme,
+            accentColor = accent,
+            displayName = name,
+            loading = false,
+        )
     }.catch {
         emit(NexoUiState(loading = false, error = "No se pudieron cargar los datos. Reinicia la app para reintentar."))
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), NexoUiState())
@@ -52,6 +67,8 @@ class NexoViewModel(
     }
 
     fun setThemeMode(mode: ThemeMode) = perform { settings.setThemeMode(mode) }
+    fun setAccentColor(color: AccentColor) = perform { settings.setAccentColor(color) }
+    fun setDisplayName(name: String) = perform { settings.setDisplayName(name) }
     fun dismissError() { operation.update { it.copy(error = null) } }
 
     private fun perform(action: suspend () -> Unit) {

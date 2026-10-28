@@ -18,6 +18,7 @@ import com.example.nexonote.domain.model.TableQuery
 import com.example.nexonote.domain.model.TableRow
 import com.example.nexonote.domain.model.Task
 import com.example.nexonote.domain.model.TaskInput
+import com.example.nexonote.domain.model.AccentColor
 import com.example.nexonote.domain.model.ThemeMode
 import kotlinx.coroutines.flow.Flow
 
@@ -95,4 +96,6 @@ interface SettingsRepository {
     suspend fun setDisplayName(name: String)
     val themeMode: Flow<ThemeMode>
     suspend fun setThemeMode(mode: ThemeMode)
+    val accentColor: Flow<AccentColor>
+    suspend fun setAccentColor(color: AccentColor)
 }

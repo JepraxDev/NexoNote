@@ -13,6 +13,7 @@ import com.example.nexonote.data.transfer.BackupArchive
 import com.example.nexonote.data.transfer.BackupService
 import com.example.nexonote.data.transfer.FileGateway
 import com.example.nexonote.data.transfer.RestoreService
+import com.example.nexonote.domain.model.AccentColor
 import com.example.nexonote.domain.model.BackupHistoryEntry
 import com.example.nexonote.domain.model.ColumnInput
 import com.example.nexonote.domain.model.ColumnType
@@ -25,6 +26,7 @@ import com.example.nexonote.domain.model.SubtaskDraft
 import com.example.nexonote.domain.model.TableInput
 import com.example.nexonote.domain.model.TableQuery
 import com.example.nexonote.domain.model.TaskInput
+import com.example.nexonote.domain.model.ThemeMode
 import com.example.nexonote.domain.repository.BackupRepository
 import com.example.nexonote.testing.FakeBackupHistoryStore
 import com.example.nexonote.testing.FakeReminderScheduler
@@ -94,6 +96,8 @@ class BackupRestoreTest {
 
     @Test fun backupAndReplaceRestorePreservesIdsRelationsAndSettings() = runBlocking {
         val seed = seedData()
+        settings.setThemeMode(ThemeMode.DARK)
+        settings.setAccentColor(AccentColor.TEAL)
         val entry = backupService.createManaged(null)
         assertTrue(entry.sizeBytes > 0)
         assertTrue(entry.fileName.endsWith(".nexobackup"))
@@ -101,6 +105,8 @@ class BackupRestoreTest {
         // Mutate, delete and add unrelated data after the snapshot was taken.
         val extraNote = notes.save(null, noteInput("Nota posterior"))
         notes.save(seed.noteId, noteInput("Título cambiado"))
+        settings.setThemeMode(ThemeMode.LIGHT)
+        settings.setAccentColor(AccentColor.RED)
         val backupFile = managedFile(entry)
 
         val preview = restoreService.inspect(Uri.fromFile(backupFile))
@@ -131,6 +137,8 @@ class BackupRestoreTest {
         assertEquals("7", row!!.cells[seed.quantityColumnId])
 
         assertEquals("Soporte", settings.displayName.first())
+        assertEquals(ThemeMode.DARK, settings.themeMode.first())
+        assertEquals(AccentColor.TEAL, settings.accentColor.first())
     }
 
     @Test fun encryptedBackupRejectsWrongPasswordAndRestoresWithCorrectOne() = runBlocking {

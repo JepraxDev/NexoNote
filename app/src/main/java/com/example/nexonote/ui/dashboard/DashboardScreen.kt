@@ -7,10 +7,8 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
@@ -50,8 +48,6 @@ fun DashboardRoute(
         openTask,
         openTable,
         model::retry,
-        model::saveName,
-        model::clearNameError,
         onOpenOrganization,
         calendarContent,
     )
@@ -66,13 +62,9 @@ fun DashboardScreen(
     openTask: (Long) -> Unit,
     openTable: (Long) -> Unit,
     retry: () -> Unit,
-    saveName: (String, () -> Unit) -> Unit,
-    clearNameError: () -> Unit,
     onOpenOrganization: (String) -> Unit,
     calendarContent: @Composable () -> Unit = {},
 ) {
-    var editingName by rememberSaveable { mutableStateOf(false) }
-    var name by rememberSaveable { mutableStateOf("") }
     BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         val fontScale = LocalDensity.current.fontScale
         val available = maxWidth.value.coerceAtMost(1120f) / fontScale
@@ -104,26 +96,28 @@ fun DashboardScreen(
             } else {
                 item(key = "header", span = { GridItemSpan(maxLineSpan) }) {
                     Card(
-                        shape = RoundedCornerShape(28.dp),
+                        shape = RoundedCornerShape(24.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
                     ) {
-                        Column(Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Column(
+                            Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
                             val hour = Calendar.getInstance().apply { timeInMillis = state.now }.get(Calendar.HOUR_OF_DAY)
                             Text(
                                 greeting(hour) + if (state.displayName.isBlank()) "" else ", ${state.displayName}",
-                                style = MaterialTheme.typography.headlineMedium,
+                                style = MaterialTheme.typography.titleLarge,
                             )
-                            Text(DateFormat.getDateInstance(DateFormat.FULL, spanishLocale).format(Date(state.now)))
-                            Text("Tus ideas y pendientes, en un solo lugar.")
-                            TextButton(onClick = {
-                                name = state.displayName
-                                clearNameError()
-                                editingName = true
-                            }) {
-                                Icon(Icons.Outlined.Edit, contentDescription = null)
-                                Spacer(Modifier.width(8.dp))
-                                Text(if (state.displayName.isBlank()) "Configurar mi nombre" else "Cambiar nombre")
-                            }
+                            Text(
+                                DateFormat.getDateInstance(DateFormat.FULL, spanishLocale).format(Date(state.now)),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                            )
+                            Text(
+                                "Tus ideas y pendientes, en un solo lugar.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
                         }
                     }
                 }
@@ -206,33 +200,6 @@ fun DashboardScreen(
                 }
             }
         }
-    }
-    if (editingName) {
-        AlertDialog(
-            onDismissRequest = { if (!state.savingName) editingName = false },
-            title = { Text("¿Cómo te llamas?") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = name,
-                        onValueChange = { if (it.length <= 40) name = it },
-                        label = { Text("Nombre") },
-                        singleLine = true,
-                        enabled = !state.savingName,
-                        supportingText = { Text("${name.length}/40 · Opcional") },
-                    )
-                    state.nameError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                }
-            },
-            confirmButton = {
-                TextButton(enabled = !state.savingName, onClick = { saveName(name) { editingName = false } }) {
-                    Text(if (state.savingName) "Guardando…" else "Guardar")
-                }
-            },
-            dismissButton = {
-                TextButton(enabled = !state.savingName, onClick = { editingName = false }) { Text("Cancelar") }
-            },
-        )
     }
 }
 

@@ -2,6 +2,18 @@ package com.example.nexonote.domain.model
 
 enum class EntryType { NOTE, TASK, TABLE }
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
+
+/** Accent palette persisted in DataStore and applied by the Material 3 theme. */
+enum class AccentColor(val label: String) {
+    PURPLE("Morado"),
+    BLUE("Azul"),
+    TEAL("Turquesa"),
+    GREEN("Verde"),
+    ORANGE("Naranja"),
+    PINK("Rosa"),
+    RED("Rojo"),
+}
+
 enum class TaskPriority(val rank: Int, val label: String) {
     UNSPECIFIED(0, "Sin prioridad"),
     LOW(1, "Baja"),

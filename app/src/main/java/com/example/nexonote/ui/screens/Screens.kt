@@ -1,14 +1,19 @@
 package com.example.nexonote.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.SettingsBackupRestore
@@ -18,13 +23,20 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import com.example.nexonote.domain.model.AccentColor
 import com.example.nexonote.domain.model.Entry
 import com.example.nexonote.domain.model.EntryType
 import com.example.nexonote.domain.model.ThemeMode
 import com.example.nexonote.ui.NexoUiState
+import com.example.nexonote.ui.theme.accentSwatch
 
 @Composable
 fun CollectionScreen(
@@ -123,37 +135,99 @@ fun CollectionScreen(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(
     state: NexoUiState,
     setTheme: (ThemeMode) -> Unit,
+    setAccent: (AccentColor) -> Unit = {},
+    saveName: (String) -> Unit = {},
     onOpenExport: (() -> Unit)? = null,
     onOpenImport: (() -> Unit)? = null,
     onOpenBackup: (() -> Unit)? = null,
     onOpenRestore: (() -> Unit)? = null,
 ) {
-    LazyColumn(contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    LazyColumn(
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
         item {
-            Text("Hazlo tuyo", style = MaterialTheme.typography.headlineMedium)
+            Text("Hazlo tuyo", style = MaterialTheme.typography.headlineSmall)
             Text("Elige cómo quieres ver tu espacio.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         item {
             OutlinedCard(Modifier.fillMaxWidth()) {
-                Column(Modifier.selectableGroup().padding(16.dp)) {
-                    Text("Apariencia", style = MaterialTheme.typography.titleLarge)
-                    ThemeMode.entries.forEach { mode ->
-                        Row(
-                            Modifier.fillMaxWidth().selectable(
-                                selected = state.themeMode == mode,
-                                enabled = !state.saving && !state.loading,
-                                role = Role.RadioButton,
-                                onClick = { setTheme(mode) },
-                            ).padding(vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Tu perfil", style = MaterialTheme.typography.titleLarge)
+                    Text(
+                        "El nombre aparece en el saludo del inicio.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    var name by rememberSaveable(state.displayName) { mutableStateOf(state.displayName) }
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { if (it.length <= 40) name = it },
+                        label = { Text("Nombre") },
+                        singleLine = true,
+                        enabled = !state.saving && !state.loading,
+                        supportingText = { Text("${name.length}/40 · Opcional") },
+                        modifier = Modifier.fillMaxWidth().testTag("settings_name"),
+                    )
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        Button(
+                            onClick = { saveName(name) },
+                            enabled = !state.saving && !state.loading && name.trim() != state.displayName,
                         ) {
-                            RadioButton(selected = state.themeMode == mode, onClick = null)
-                            Spacer(Modifier.width(12.dp))
-                            Text(when (mode) { ThemeMode.SYSTEM -> "Según el sistema"; ThemeMode.LIGHT -> "Claro"; ThemeMode.DARK -> "Oscuro" })
+                            Text(if (state.saving) "Guardando…" else "Guardar nombre")
+                        }
+                    }
+                }
+            }
+        }
+        item {
+            OutlinedCard(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp)) {
+                    Text("Apariencia", style = MaterialTheme.typography.titleLarge)
+                    Column(Modifier.selectableGroup()) {
+                        ThemeMode.entries.forEach { mode ->
+                            Row(
+                                Modifier.fillMaxWidth().selectable(
+                                    selected = state.themeMode == mode,
+                                    enabled = !state.saving && !state.loading,
+                                    role = Role.RadioButton,
+                                    onClick = { setTheme(mode) },
+                                ).padding(vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                RadioButton(selected = state.themeMode == mode, onClick = null)
+                                Spacer(Modifier.width(12.dp))
+                                Text(when (mode) { ThemeMode.SYSTEM -> "Según el sistema"; ThemeMode.LIGHT -> "Claro"; ThemeMode.DARK -> "Oscuro" })
+                            }
+                        }
+                    }
+                    Text(
+                        "Color de acento",
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                    Text(
+                        "Botones, tarjetas y resaltados.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    FlowRow(
+                        modifier = Modifier.selectableGroup().padding(top = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        AccentColor.entries.forEach { accent ->
+                            AccentSwatch(
+                                accent = accent,
+                                selected = state.accentColor == accent,
+                                enabled = !state.saving && !state.loading,
+                                onClick = { setAccent(accent) },
+                            )
                         }
                     }
                 }
@@ -208,6 +282,48 @@ fun SettingsScreen(
         item {
             Text("NexoNote · Base nativa", style = MaterialTheme.typography.titleMedium)
             Text("Tus elementos se guardan localmente con Room y tu apariencia con DataStore.")
+        }
+    }
+}
+
+@Composable
+private fun AccentSwatch(
+    accent: AccentColor,
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    Box(
+        Modifier
+            .size(48.dp)
+            .selectable(
+                selected = selected,
+                enabled = enabled,
+                role = Role.RadioButton,
+                onClick = onClick,
+            )
+            .semantics { contentDescription = "Color ${accent.label}" }
+            .testTag("accent_${accent.name}"),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier
+                .size(34.dp)
+                .clip(CircleShape)
+                .background(accentSwatch(accent))
+                .border(
+                    width = if (selected) 3.dp else 1.dp,
+                    color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
+                    shape = CircleShape,
+                ),
+        )
+        if (selected) {
+            Icon(
+                Icons.Outlined.Check,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(18.dp),
+            )
         }
     }
 }

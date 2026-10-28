@@ -17,6 +17,7 @@ archivos y no se cambió el esquema de Room.
 - Repositorios de notas, tareas, tablas, eventos, organización, exportación, importación y copias.
 - ViewModels y pantallas de edición: concurrencia, doble pulsación, errores y pérdida de estado.
 - Navegación, ciclo de vida, rotación, estados de carga/vacío/error y accesibilidad básica.
+- Preferencias de apariencia (tema, color de acento y nombre), su persistencia y su inclusión en copias.
 - Compilación Debug/Release, R8, pruebas unitarias, instrumentadas y lint.
 
 ## Problemas detectados y estado
@@ -45,6 +46,16 @@ archivos y no se cambió el esquema de Room.
 | Baja | `Log.e` de producción en `TableDetailViewModel`. | Eliminado; el error ya se muestra en la UI. |
 | Baja | Etiquetas de la barra inferior truncadas sin indicador. | `TextOverflow.Ellipsis`. |
 | Baja | Tema de arranque claro en modo oscuro. | `values-night` con fondo y barra de estado oscuros. |
+
+### Personalización añadida en esta etapa
+
+| Área | Cambio |
+| --- | --- |
+| Color de acento | `AccentColor` (morado, azul, turquesa, verde, naranja, rosa y rojo) guardado en DataStore y aplicado a `ColorScheme` (primario, contenedores, secundario y terciario) en claro y oscuro. `NexoViewModel` lo expone en `NexoUiState` y `MainActivity` lo pasa al tema. |
+| Nombre | Campo de nombre en Ajustes con contador 0/40, guardado mediante `SettingsRepository`; el diálogo «Configurar mi nombre» del dashboard se eliminó. El saludo usa el nombre guardado y lo omite si está vacío. |
+| Cabecera del inicio | Tarjeta más compacta (18/16 dp de relleno, título `titleLarge`, fecha y lema en `bodySmall`) sin botón de nombre, para dejar más espacio al contenido. |
+| Copias | El color de acento se incluye en `readSettings`/`applySettings`, de modo que restaurar una copia conserva la apariencia. Valores desconocidos se ignoran y se mantiene el valor actual. |
+| Pruebas | Prueba instrumentada de Ajustes que cambia nombre, tema y acento y comprueba la persistencia al navegar; pruebas unitarias de `NexoViewModel` para acento/nombre y para el error de escritura con reintento. |
 
 ### Detectados y no corregidos (documentados)
 
@@ -76,7 +87,7 @@ archivos y no se cambió el esquema de Room.
 - Backup: se excluyen las copias gestionadas (`filesDir/backups`) y los adjuntos del backup en
   nube; la transferencia entre dispositivos conserva los adjuntos y excluye solo las copias
   gestionadas.
-- Icono adaptativo con capa monochrome; tema de arranque claro/oscuro.
+- Icono propio a partir de `ic_app-playstore.png`: PNG por densidad, variante redonda y capa adaptativa con fondo degradado y primer plano; el arte completo queda visible en máscaras circulares. Tema de arranque claro/oscuro.
 
 ## Verificación ejecutada
 
@@ -91,28 +102,35 @@ Comandos ejecutados en Windows con el emulador `Medium_Phone_API_37.0` (`emulato
 Resultados reales:
 
 - Compilación Debug: correcta.
-- Pruebas unitarias: **91 aprobadas, 0 fallidas, 0 omitidas**.
+- Pruebas unitarias: **92 aprobadas, 0 fallidas, 0 omitidas**.
 - Pruebas instrumentadas: **60 aprobadas, 0 fallidas, 0 omitidas** (incluye dos pruebas de
-  regresión nuevas para claves repetidas en importación y para conservar columnas sin mapear).
-- Lint: **0 errores, 22 advertencias** (recursos de plantilla sin usar, entre otras
-  preexistentes). No se eliminaron recursos para no romper referencias históricas.
-- Compilación Release y bundle: correctos con R8 activo.
+  regresión nuevas para claves repetidas en importación y para conservar columnas sin mapear, y
+  la prueba de nombre, tema y acento desde Ajustes).
+- Lint: **0 errores, 22 advertencias** (versiones de dependencias y colores de plantilla sin
+  usar, entre otras preexistentes). Se eliminaron los recursos `ic_launcher*` de plantilla que ya
+  no referenciaba el manifiesto.
+- Compilación Release y bundle: correctos con R8 activo, regenerados tras la personalización.
 - Instalación y arranque del APK Debug en el emulador: correctos, sin `FATAL EXCEPTION` en
-  `logcat`.
+  `logcat`. El nombre y el acento se conservaron tras cerrar y volver a abrir la app.
+- Icono verificado en el emulador (lanzador con máscara circular e «Información de la app»): el
+  arte completo se ve sin recortes. También se comprobó en una copia temporal del Release firmada
+  con la clave de depuración solo para revisión visual; el artefacto del repositorio sigue sin
+  firmar.
 - No se afirmó ningún resultado no ejecutado.
 
 ## Artefactos
 
 | Artefacto | Ruta | Tamaño aproximado |
 | --- | --- | --- |
-| APK Debug instalable | `app/build/outputs/apk/debug/app-debug.apk` | ~23 MB |
-| APK Release sin firmar | `app/build/outputs/apk/release/app-release-unsigned.apk` | 3,8 MB |
-| Android App Bundle | `app/build/outputs/bundle/release/app-release.aab` | 6,3 MB |
+| APK Debug instalable | `app/build/outputs/apk/debug/app-debug.apk` | 22,7 MB (23 838 182 B) |
+| APK Release sin firmar | `app/build/outputs/apk/release/app-release-unsigned.apk` | 4,1 MB (4 248 926 B) |
+| Android App Bundle | `app/build/outputs/bundle/release/app-release.aab` | 6,4 MB (6 714 599 B) |
 | Informe lint | `app/build/reports/lint-results-debug.html` | — |
 | Pruebas unitarias | `app/build/reports/tests/testDebugUnitTest/index.html` | — |
 | Pruebas instrumentadas | `app/build/reports/androidTests/connected/debug/index.html` | — |
 
-Los tamaños pueden variar entre compilaciones.
+Los tamaños pueden variar entre compilaciones. `apksigner verify` sobre el APK Release informa
+«DOES NOT VERIFY» porque no contiene firma, tal como se espera sin las variables `NEXONOTE_*`.
 
 ## Instalación del APK Debug
 

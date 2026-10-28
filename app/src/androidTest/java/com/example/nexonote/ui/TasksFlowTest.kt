@@ -17,6 +17,7 @@ import com.example.nexonote.data.repository.LocalNoteRepository
 import com.example.nexonote.data.repository.LocalOrganizationRepository
 import com.example.nexonote.data.repository.LocalTableRepository
 import com.example.nexonote.data.repository.LocalTaskRepository
+import com.example.nexonote.domain.model.AccentColor
 import com.example.nexonote.domain.model.ThemeMode
 import com.example.nexonote.domain.repository.SettingsRepository
 import com.example.nexonote.testing.FakeReminderScheduler
@@ -54,8 +55,10 @@ class TasksFlowTest {
         val activities = LocalActivityRepository(database.entryDao())
         val settings = object : SettingsRepository {
             override val themeMode = MutableStateFlow(ThemeMode.SYSTEM)
+            override val accentColor = MutableStateFlow(AccentColor.PURPLE)
             override val displayName = MutableStateFlow("")
             override suspend fun setThemeMode(mode: ThemeMode) { themeMode.value = mode }
+            override suspend fun setAccentColor(color: AccentColor) { accentColor.value = color }
             override suspend fun setDisplayName(name: String) { displayName.value = name.trim() }
         }
         val model = NexoViewModel(entries, settings).also { models.put("app", it) }
@@ -112,7 +115,7 @@ class TasksFlowTest {
             }
         }
         compose.waitUntil(10_000) {
-            compose.onAllNodesWithText("Configurar mi nombre").fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithText("Acciones rápidas").fetchSemanticsNodes().isNotEmpty()
         }
         compose.onNodeWithTag("nav_tasks").performClick()
         compose.waitUntil(10_000) {

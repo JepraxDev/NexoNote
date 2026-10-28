@@ -3,6 +3,7 @@ package com.example.nexonote.ui.dashboard
 import androidx.lifecycle.ViewModelStore
 import com.example.nexonote.domain.model.Activity
 import com.example.nexonote.domain.model.ActivityKind
+import com.example.nexonote.domain.model.AccentColor
 import com.example.nexonote.domain.model.ColumnInput
 import com.example.nexonote.domain.model.ColumnOption
 import com.example.nexonote.domain.model.ColumnType
@@ -86,24 +87,6 @@ class DashboardViewModelTest {
         runCurrent()
         assertNull(model.uiState.value.error)
         assertEquals(1, model.uiState.value.noteCount)
-    }
-
-    @Test fun saveFailureKeepsDialogOpenAndAllowsRetry() = runTest {
-        val settings = FakeSettings().apply { failWrite = true }
-        val model = model(FakeEntries(), FakeNotes(), FakeTasks(), FakeActivities(), settings)
-        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { model.uiState.collect() }
-        var saved = false
-        model.saveName("Ana") { saved = true }
-        runCurrent()
-        assertFalse(saved)
-        assertNotNull(model.uiState.value.nameError)
-        assertFalse(model.uiState.value.savingName)
-        settings.failWrite = false
-        model.saveName("Ana") { saved = true }
-        runCurrent()
-        assertTrue(saved)
-        assertNull(model.uiState.value.nameError)
-        assertEquals("Ana", model.uiState.value.displayName)
     }
 
     private fun model(
@@ -198,11 +181,11 @@ class DashboardViewModelTest {
     private class FakeSettings : SettingsRepository {
         override val displayName = MutableStateFlow("")
         override val themeMode = MutableStateFlow(ThemeMode.SYSTEM)
-        var failWrite = false
+        override val accentColor = MutableStateFlow(AccentColor.PURPLE)
         override suspend fun setDisplayName(name: String) {
-            if (failWrite) throw IOException("Write failed")
             displayName.value = name
         }
         override suspend fun setThemeMode(mode: ThemeMode) { themeMode.value = mode }
+        override suspend fun setAccentColor(color: AccentColor) { accentColor.value = color }
     }
 }

@@ -17,6 +17,7 @@ import com.example.nexonote.data.repository.LocalNoteRepository
 import com.example.nexonote.data.repository.LocalOrganizationRepository
 import com.example.nexonote.data.repository.LocalTableRepository
 import com.example.nexonote.data.repository.LocalTaskRepository
+import com.example.nexonote.domain.model.AccentColor
 import com.example.nexonote.domain.model.ThemeMode
 import com.example.nexonote.domain.repository.SettingsRepository
 import com.example.nexonote.testing.FakeReminderScheduler
@@ -53,8 +54,10 @@ class DashboardNavigationTest {
         val activities = LocalActivityRepository(database.entryDao())
         val settings = object : SettingsRepository {
             override val themeMode = MutableStateFlow(ThemeMode.SYSTEM)
+            override val accentColor = MutableStateFlow(AccentColor.PURPLE)
             override val displayName = MutableStateFlow("")
             override suspend fun setThemeMode(mode: ThemeMode) { themeMode.value = mode }
+            override suspend fun setAccentColor(color: AccentColor) { accentColor.value = color }
             override suspend fun setDisplayName(name: String) { displayName.value = name.trim() }
         }
         val model = NexoViewModel(entries, settings).also { models.put("app", it) }
@@ -96,7 +99,7 @@ class DashboardNavigationTest {
         }
         compose.setContent {
             val state by model.uiState.collectAsStateWithLifecycle()
-            NexoNoteTheme(darkTheme = state.themeMode == ThemeMode.DARK) {
+            NexoNoteTheme(darkTheme = state.themeMode == ThemeMode.DARK, accent = state.accentColor) {
                 NexoNoteApp(
                     state,
                     model,
@@ -110,7 +113,7 @@ class DashboardNavigationTest {
                 )
             }
         }
-        compose.waitUntil(10_000) { compose.onAllNodesWithText("Configurar mi nombre").fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(10_000) { compose.onAllNodesWithText("Acciones rápidas").fetchSemanticsNodes().isNotEmpty() }
     }
 
     @After fun teardown() {
@@ -150,16 +153,18 @@ class DashboardNavigationTest {
         compose.onNodeWithText("Completaste una tarea").assertExists()
     }
 
-    @Test fun nameAndThemeCanBeChangedWithoutBreakingNavigation() {
-        compose.onNodeWithText("Configurar mi nombre").performClick()
-        compose.onNode(hasSetTextAction()).performTextInput("Ana")
-        compose.onNodeWithText("Guardar").performClick()
-        compose.waitUntil(10_000) { compose.onAllNodesWithText(", Ana", substring = true).fetchSemanticsNodes().isNotEmpty() }
+    @Test fun nameThemeAndAccentCanBeChangedFromSettings() {
         compose.onNodeWithText("Ajustes", useUnmergedTree = true).performClick()
+        compose.onNodeWithTag("settings_name").performTextInput("Ana")
+        compose.onNodeWithText("Guardar nombre").performClick()
         compose.onNodeWithText("Oscuro").performClick()
+        compose.onNodeWithTag("accent_BLUE").performClick()
+        compose.onNodeWithTag("accent_BLUE").assertIsSelected()
         compose.onNodeWithText("Inicio").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithText(", Ana", substring = true).fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText(", Ana", substring = true).assertExists()
         compose.onNodeWithText("Ajustes", useUnmergedTree = true).performClick()
+        compose.onNodeWithTag("accent_BLUE").assertIsSelected()
         compose.onNodeWithText("Claro").performClick()
         compose.onNodeWithText("Inicio").performClick()
         compose.onNodeWithText(", Ana", substring = true).assertExists()

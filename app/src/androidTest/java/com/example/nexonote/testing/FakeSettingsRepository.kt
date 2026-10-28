@@ -1,5 +1,6 @@
 package com.example.nexonote.testing
 
+import com.example.nexonote.domain.model.AccentColor
 import com.example.nexonote.domain.model.BackupHistoryEntry
 import com.example.nexonote.domain.model.ThemeMode
 import com.example.nexonote.domain.repository.BackupHistoryStore
@@ -11,9 +12,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 class FakeSettingsRepository(
     initialName: String = "Soporte",
     initialTheme: ThemeMode = ThemeMode.SYSTEM,
+    initialAccent: AccentColor = AccentColor.PURPLE,
 ) : SettingsRepository {
     private val name = MutableStateFlow(initialName)
     private val theme = MutableStateFlow(initialTheme)
+    private val accent = MutableStateFlow(initialAccent)
 
     override val displayName: Flow<String> = name
     override suspend fun setDisplayName(name: String) {
@@ -23,6 +26,11 @@ class FakeSettingsRepository(
     override val themeMode: Flow<ThemeMode> = theme
     override suspend fun setThemeMode(mode: ThemeMode) {
         theme.value = mode
+    }
+
+    override val accentColor: Flow<AccentColor> = accent
+    override suspend fun setAccentColor(color: AccentColor) {
+        accent.value = color
     }
 }
 

@@ -16,9 +16,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 
-private data class NameSaveState(val saving: Boolean = false, val error: String? = null)
 
 private data class DashboardCore(
     val entries: List<com.example.nexonote.domain.model.Entry>,
@@ -39,7 +37,6 @@ class DashboardViewModel(
     private val clock: () -> Long = System::currentTimeMillis,
 ) : ViewModel() {
     private val retry = MutableStateFlow(0)
-    private val nameSave = MutableStateFlow(NameSaveState())
     private val time = flow {
         while (true) {
             emit(clock())
@@ -76,29 +73,10 @@ class DashboardViewModel(
                 emit(DashboardUiState(loading = false, error = "No pudimos cargar tu espacio. Comprueba el almacenamiento e inténtalo de nuevo."))
             }
     }
-    val uiState: StateFlow<DashboardUiState> = combine(content, nameSave) { data, operation ->
-        data.copy(savingName = operation.saving, nameError = operation.error)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DashboardUiState())
+    val uiState: StateFlow<DashboardUiState> = content
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DashboardUiState())
 
     fun retry() { retry.update { it + 1 } }
-    fun clearNameError() { nameSave.update { it.copy(error = null) } }
-
-    fun saveName(name: String, onSaved: () -> Unit) {
-        if (nameSave.value.saving) return
-        nameSave.value = NameSaveState(saving = true)
-        viewModelScope.launch {
-            try {
-                settings.setDisplayName(name)
-                nameSave.value = NameSaveState()
-                onSaved()
-            } catch (error: CancellationException) {
-                nameSave.value = NameSaveState()
-                throw error
-            } catch (_: Exception) {
-                nameSave.value = NameSaveState(error = "No se pudo guardar el nombre. Vuelve a intentarlo.")
-            }
-        }
-    }
 
     companion object {
         fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {

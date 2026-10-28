@@ -22,8 +22,6 @@ data class DashboardUiState(
     val upcomingTasks: List<Task> = emptyList(),
     val recentTableRows: List<RecentTableRow> = emptyList(),
     val recentActivity: List<Activity> = emptyList(),
-    val savingName: Boolean = false,
-    val nameError: String? = null,
 ) {
     val taskCount: Int get() = pendingCount + completedCount
     val progress: Float get() = if (taskCount == 0) 0f else completedCount.toFloat() / taskCount

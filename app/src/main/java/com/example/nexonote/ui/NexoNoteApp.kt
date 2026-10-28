@@ -299,6 +299,8 @@ fun NexoNoteApp(
                 SettingsScreen(
                     state = state,
                     setTheme = model::setThemeMode,
+                    setAccent = model::setAccentColor,
+                    saveName = model::setDisplayName,
                     onOpenExport = transferFactories?.let { { openTransfer(TransferRoutes.EXPORT) } },
                     onOpenImport = transferFactories?.let { { openTransfer(TransferRoutes.IMPORT) } },
                     onOpenBackup = transferFactories?.let { { openTransfer(TransferRoutes.BACKUP) } },

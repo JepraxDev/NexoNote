@@ -106,7 +106,9 @@ Decisiones de diseño, formato, límites y verificación: [docs/ETAPA_8.md](docs
 - Reintentos reales en Carpetas, Estadísticas y Favoritos; los errores de favoritos ya no se muestran como lista vacía.
 - Correcciones de rotación (extras, fecha inicial, cifrado, carpeta/categoría/etiquetas de eventos) y de carga vacía en tablas.
 - Interfaz: filtros de búsqueda con `FlowRow`, formulario de carpeta desplazable, teclado en el editor de eventos, paleta de notas adaptable, iconos autoespejados y tema de arranque oscuro.
-- Verificación final: 91 pruebas unitarias, 60 instrumentadas, lint con 0 errores y 22 advertencias.
+- Personalización en Ajustes: nombre editable y siete colores de acento (morado, azul, turquesa, verde, naranja, rosa y rojo) aplicados por Material 3 y guardados en DataStore; el saludo del inicio se reduce a una cabecera compacta sin botón de nombre.
+- Icono propio generado desde `ic_app-playstore.png` (PNG por densidad, variante redonda y adaptativa con fondo degradado).
+- Verificación final: 92 pruebas unitarias, 60 instrumentadas, lint con 0 errores y 22 advertencias.
 
 Auditoría, correcciones, artefactos y limitaciones: [docs/ETAPA_9.md](docs/ETAPA_9.md).
 
@@ -139,14 +141,14 @@ Código en `app/src/main/java/com/example/nexonote/`:
 | `data/repository/LocalNoteRepository.kt` | Guardado transaccional de notas, checklist, etiquetas y ciclo de vida. |
 | `data/repository/LocalTaskRepository.kt` | Tareas, subtareas, etiquetas, recurrencias y recordatorios transaccionales. |
 | `data/repository/LocalTableRepository.kt` | Tablas, columnas, opciones, registros, celdas y consultas paginadas. |
-| `data/repository/DataStoreSettingsRepository.kt` | Tema y nombre visible. |
+| `data/repository/DataStoreSettingsRepository.kt` | Tema, color de acento y nombre visible. |
 | `reminder/` | Worker de WorkManager, notificaciones, scheduler y reprogramación tras reinicio. |
 | `navigation/Destination.kt` | Rutas, etiquetas e iconos de los cinco destinos y editor de tareas. |
-| `ui/NexoViewModel.kt` | Estado de colecciones y tema con StateFlow. |
+| `ui/NexoViewModel.kt` | Estado de colecciones, tema, acento y nombre con StateFlow. |
 | `ui/NexoNoteApp.kt` | Scaffold Material 3, Navigation Compose, deep links y Snackbar. |
 | `ui/dashboard/DashboardUiState.kt` | Estado derivado y ordenación del dashboard. |
-| `ui/dashboard/DashboardViewModel.kt` | Combinación de Flows, reintentos y guardado del nombre. |
-| `ui/dashboard/DashboardScreen.kt` | Dashboard adaptable, saludo, estados y diálogo de nombre. |
+| `ui/dashboard/DashboardViewModel.kt` | Combinación de Flows y reintentos del dashboard. |
+| `ui/dashboard/DashboardScreen.kt` | Dashboard adaptable, saludo compacto y estados. |
 | `ui/dashboard/DashboardComponents.kt` | Tarjetas, progreso, acciones, listas y actividad reutilizables. |
 | `ui/notes/NotesUiState.kt` | Filtrado, búsqueda y ordenación de notas. |
 | `ui/notes/NotesViewModel.kt` | Estado reactivo y acciones de organización y papelera. |
@@ -169,10 +171,10 @@ Código en `app/src/main/java/com/example/nexonote/`:
 | `data/repository/FileBackupHistoryStore.kt`, `DataStoreBackupSettingsRepository.kt` | Historial verificado y preferencias de copias automáticas. |
 | `backup/` | Programación periódica con WorkManager y ejecución de copias automáticas. |
 | `ui/transfer/` | Pantallas, ViewModels, estados, componentes compartidos, rutas y contrato SAF de creación de documentos. |
-| `ui/screens/Screens.kt` | Pantallas compartidas y Ajustes. |
-| `ui/theme/` | Temas claro/oscuro y tipografía Compose. |
+| `ui/screens/Screens.kt` | Pantallas compartidas y Ajustes: perfil, tema, paleta de acento y datos. |
+| `ui/theme/` | Esquemas claro/oscuro por color de acento y tipografía Compose. |
 
-Flujo: **UI → ViewModel → contratos Repository → Room / DataStore / WorkManager**. Room emite cambios por Flow; el `DashboardViewModel` los combina con notas, tareas, actividad, nombre y reloj para producir un `DashboardUiState` inmutable. La UI no accede a DAOs ni usa datos simulados. Las transacciones de Room insertan la nota o tarea, su fila resumen en `entries`, el evento de actividad, las relaciones y las subtareas de forma atómica. El scheduler de recordatorios se invoca después de confirmar la transacción.
+Flujo: **UI → ViewModel → contratos Repository → Room / DataStore / WorkManager**. Room emite cambios por Flow; `NexoViewModel` combina tema, acento y nombre con DataStore, y el `DashboardViewModel` combina notas, tareas, actividad, tablas y reloj para producir un `DashboardUiState` inmutable. La UI no accede a DAOs ni usa datos simulados. Las transacciones de Room insertan la nota o tarea, su fila resumen en `entries`, el evento de actividad, las relaciones y las subtareas de forma atómica. El scheduler de recordatorios se invoca después de confirmar la transacción.
 
 `app/schemas/` contiene los esquemas exportados. Las migraciones preservan los registros históricos: las fechas desconocidas quedan nulas y no se inventan contenido, eventos ni fechas de creación al recuperar notas anteriores. La migración 4→5 conserva las tareas existentes como filas resumen y crea sus detalles sin inventar descripción, recordatorios ni recurrencias. La migración 7→8 solo añade tablas y columnas opcionales; las filas previas mantienen su contenido y las etiquetas heredan el color por defecto.
 
@@ -217,7 +219,7 @@ El Release queda sin firmar salvo que se definan `NEXONOTE_STORE_FILE`, `NEXONOT
 `NEXONOTE_KEY_ALIAS` y `NEXONOTE_KEY_PASSWORD` (propiedades de Gradle, variables de entorno o
 `keystore.properties` ignorado por Git). No hay claves de firma en el repositorio.
 
-Las pruebas cubren cálculo de progreso sin tareas, estadísticas, ordenación de notas/tareas/actividad, filtros y búsqueda, autoguardado y salida segura, errores y reintentos, guardado del nombre, creación y actualización transaccional de notas, checklist/etiquetas, papelera, migraciones 1→5, validación y recurrencia de tareas, recordatorios, subtareas, flujo completo de creación/edición/búsqueda/finalización/borrado de tareas, acciones rápidas, actualización reactiva tras cambios en Room y navegación entre temas. Se ejecutaron en el emulador `Medium_Phone_API_37.0`.
+Las pruebas cubren cálculo de progreso sin tareas, estadísticas, ordenación de notas/tareas/actividad, filtros y búsqueda, autoguardado y salida segura, errores y reintentos, cambio de nombre y color de acento desde Ajustes, creación y actualización transaccional de notas, checklist/etiquetas, papelera, migraciones 1→5, validación y recurrencia de tareas, recordatorios, subtareas, flujo completo de creación/edición/búsqueda/finalización/borrado de tareas, acciones rápidas, actualización reactiva tras cambios en Room y navegación entre temas. Se ejecutaron en el emulador `Medium_Phone_API_37.0`.
 
 Las pruebas de tablas cubren normalización y validación, migración 5→6, CRUD, filtros, ordenación, paginación, conversión de tipos, duplicado independiente con opciones y valores predeterminados, y carga de registros invocada desde el hilo principal.
 
@@ -227,4 +229,4 @@ Las pruebas de organización cubren jerarquía, rutas, prevención de ciclos, bo
 
 Las pruebas de transferencia cubren CSV con comillas, delimitadores, BOM, Unicode y valores vacíos; protección y desescape de fórmulas; round-trip de XLSX con varias hojas, números, booleanos y texto con aspecto de fórmula; fechas ISO y españolas; detección de tipos; formato de notas y tablas; validación de manifiestos, checksums y copias corruptas; importación con tipos detectados, duplicados, filas inválidas y archivos ausentes; copia/restauración con relaciones, identificadores, ajustes y adjuntos; contraseña incorrecta; esquema incompatible; conflicto de fusión y rollback ante fallo simulado.
 
-Estado verificado de la versión 1.0.0: **91 pruebas unitarias y 60 instrumentadas aprobadas**, compilación Debug y Release correcta, instalación y arranque del APK Debug sin fallos, y lint con **0 errores y 22 advertencias** (en su mayoría recursos de plantilla sin usar). Detalles de la auditoría, los artefactos, la firma y las limitaciones: [docs/ETAPA_9.md](docs/ETAPA_9.md).
+Estado verificado de la versión 1.0.0: **92 pruebas unitarias y 60 instrumentadas aprobadas**, compilación Debug y Release correcta, instalación y arranque del APK Debug sin fallos, icono propio comprobado en el lanzador y lint con **0 errores y 22 advertencias** (versiones de dependencias y colores sin usar). Detalles de la auditoría, los artefactos, la firma y las limitaciones: [docs/ETAPA_9.md](docs/ETAPA_9.md).

@@ -1,6 +1,7 @@
 package com.example.nexonote
 
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -46,6 +47,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            splashScreen.setOnExitAnimationListener { it.remove() }
+        }
         if (savedInstanceState == null) {
             pendingTaskId.value = intent.taskIdExtra()
             pendingEventDate.value = intent?.getLongExtra(EXTRA_EVENT_DATE, 0)?.takeIf { it != 0L }
@@ -96,7 +100,7 @@ class MainActivity : ComponentActivity() {
                     isAppearanceLightNavigationBars = !dark
                 }
             }
-            NexoNoteTheme(darkTheme = dark) {
+            NexoNoteTheme(darkTheme = dark, accent = state.accentColor) {
                 NexoNoteApp(
                     state = state,
                     model = model,

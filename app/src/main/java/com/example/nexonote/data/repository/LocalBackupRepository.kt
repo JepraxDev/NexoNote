@@ -2,6 +2,7 @@ package com.example.nexonote.data.repository
 
 import androidx.room.withTransaction
 import com.example.nexonote.data.local.NexoDatabase
+import com.example.nexonote.domain.model.AccentColor
 import com.example.nexonote.domain.model.DatabaseSnapshot
 import com.example.nexonote.domain.model.RestoreMode
 import com.example.nexonote.domain.model.TableSnapshot
@@ -75,6 +76,7 @@ class LocalBackupRepository(
     override suspend fun readSettings(): Map<String, String?> = mapOf(
         "displayName" to settings.displayName.first(),
         "themeMode" to settings.themeMode.first().name,
+        "accentColor" to settings.accentColor.first().name,
     )
 
     override suspend fun applySettings(values: Map<String, String?>) {
@@ -83,6 +85,9 @@ class LocalBackupRepository(
         }
         values["themeMode"]?.let { raw ->
             ThemeMode.entries.firstOrNull { it.name == raw }?.let { settings.setThemeMode(it) }
+        }
+        values["accentColor"]?.let { raw ->
+            AccentColor.entries.firstOrNull { it.name == raw }?.let { settings.setAccentColor(it) }
         }
     }
 
