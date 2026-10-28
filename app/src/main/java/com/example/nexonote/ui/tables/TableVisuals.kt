@@ -1,20 +1,20 @@
 package com.example.nexonote.ui.tables
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.FormatListBulleted
+import androidx.compose.material.icons.automirrored.outlined.Label
+import androidx.compose.material.icons.automirrored.outlined.List
+import androidx.compose.material.icons.automirrored.outlined.Notes
 import androidx.compose.material.icons.outlined.AttachMoney
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.CheckBox
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Flag
-import androidx.compose.material.icons.outlined.FormatListBulleted
 import androidx.compose.material.icons.outlined.GridOn
 import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Label
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.Link
-import androidx.compose.material.icons.outlined.List
 import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.Notes
 import androidx.compose.material.icons.outlined.Numbers
 import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.Schedule
@@ -24,6 +24,7 @@ import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material.icons.outlined.Work
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.core.graphics.toColorInt
 import com.example.nexonote.domain.model.ColumnType
 import com.example.nexonote.domain.model.TableIcon
 
@@ -40,20 +41,20 @@ val tableColorPalette = listOf(
 
 fun tableIconVector(icon: TableIcon): ImageVector = when (icon) {
     TableIcon.GRID -> Icons.Outlined.GridOn
-    TableIcon.FOLDER -> Icons.Outlined.Label
+    TableIcon.FOLDER -> Icons.AutoMirrored.Outlined.Label
     TableIcon.LIGHTBULB -> Icons.Outlined.Lightbulb
     TableIcon.STAR -> Icons.Outlined.Star
     TableIcon.WORK -> Icons.Outlined.Work
     TableIcon.HOME -> Icons.Outlined.Home
-    TableIcon.BOOK -> Icons.Outlined.Notes
+    TableIcon.BOOK -> Icons.AutoMirrored.Outlined.Notes
     TableIcon.CALENDAR -> Icons.Outlined.CalendarMonth
     TableIcon.FLAG -> Icons.Outlined.Flag
-    TableIcon.LIST -> Icons.Outlined.List
+    TableIcon.LIST -> Icons.AutoMirrored.Outlined.List
 }
 
 fun columnIconVector(type: ColumnType): ImageVector = when (type) {
     ColumnType.SHORT_TEXT -> Icons.Outlined.TextFields
-    ColumnType.LONG_TEXT -> Icons.Outlined.Notes
+    ColumnType.LONG_TEXT -> Icons.AutoMirrored.Outlined.Notes
     ColumnType.INTEGER -> Icons.Outlined.Numbers
     ColumnType.DECIMAL -> Icons.Outlined.Numbers
     ColumnType.CURRENCY -> Icons.Outlined.AttachMoney
@@ -61,7 +62,7 @@ fun columnIconVector(type: ColumnType): ImageVector = when (type) {
     ColumnType.DATETIME -> Icons.Outlined.Schedule
     ColumnType.CHECKBOX -> Icons.Outlined.CheckBox
     ColumnType.SELECT -> Icons.Outlined.Sell
-    ColumnType.MULTISELECT -> Icons.Outlined.FormatListBulleted
+    ColumnType.MULTISELECT -> Icons.AutoMirrored.Outlined.FormatListBulleted
     ColumnType.STATUS -> Icons.Outlined.Flag
     ColumnType.URL -> Icons.Outlined.Link
     ColumnType.EMAIL -> Icons.Outlined.Email
@@ -71,7 +72,7 @@ fun columnIconVector(type: ColumnType): ImageVector = when (type) {
 fun colorFromHex(hex: String): Color {
     val normalized = hex.removePrefix("#")
     return runCatching {
-        Color(android.graphics.Color.parseColor("#$normalized"))
+        Color("#$normalized".toColorInt())
     }.getOrElse {
         Color(0xFF6750A4)
     }

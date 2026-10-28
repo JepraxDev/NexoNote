@@ -114,6 +114,9 @@ fun TablesRoute(
         TableFormDialog(
             initial = null,
             busy = state.busy,
+            folders = state.folders,
+            categories = state.categories,
+            availableTags = state.tags,
             onDismiss = { showCreate = false },
             onConfirm = { input ->
                 model.createTable(input) { id ->
@@ -127,6 +130,9 @@ fun TablesRoute(
         TableFormDialog(
             initial = table,
             busy = state.busy,
+            folders = state.folders,
+            categories = state.categories,
+            availableTags = state.tags,
             onDismiss = { editing = null },
             onConfirm = { input ->
                 model.updateTable(table.id, input) { editing = null }

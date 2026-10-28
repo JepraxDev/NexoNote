@@ -33,6 +33,8 @@ data class Note(
     val modifiedAt: Long? = null,
     val labels: List<String> = emptyList(),
     val checklist: List<ChecklistItem> = emptyList(),
+    val folderId: Long? = null,
+    val categoryId: Long? = null,
 ) {
     val displayTitle: String get() = title.ifBlank { "Nota sin título" }
     val isActive: Boolean get() = !archived && !trashed
@@ -56,6 +58,8 @@ data class NoteInput(
     val favorite: Boolean,
     val checklist: List<ChecklistDraft> = emptyList(),
     val labels: List<String> = emptyList(),
+    val folderId: Long? = null,
+    val categoryId: Long? = null,
 ) {
     val hasContent: Boolean
         get() = title.isNotBlank() || content.isNotBlank() || checklist.any { it.text.isNotBlank() }

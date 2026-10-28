@@ -518,7 +518,7 @@ private fun TableDetailContent(
                 contentPadding = PaddingValues(horizontal = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                itemsIndexed(state.filters) { index, filter ->
+                itemsIndexed(state.filters, key = { index, _ -> index }) { index, filter ->
                     val column = state.columns.firstOrNull { it.id == filter.columnId }
                     if (column != null) {
                         InputChip(
@@ -629,11 +629,20 @@ private fun RecordGrid(
             ) {
                 if (state.rows.isEmpty()) {
                     item {
-                        EmptyRecords(
-                            hasQuery = state.hasActiveQuery,
-                            onCreateRow = onCreateRow,
-                            onResetQuery = onResetQuery,
-                        )
+                        if (state.loading) {
+                            Box(
+                                Modifier.fillMaxWidth().padding(48.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                CircularProgressIndicator(Modifier.size(28.dp))
+                            }
+                        } else {
+                            EmptyRecords(
+                                hasQuery = state.hasActiveQuery,
+                                onCreateRow = onCreateRow,
+                                onResetQuery = onResetQuery,
+                            )
+                        }
                     }
                 } else {
                     items(state.rows, key = { it.id }) { row ->
@@ -805,11 +814,17 @@ private fun RecordCards(
     onResetQuery: () -> Unit,
 ) {
     if (state.rows.isEmpty()) {
-        EmptyRecords(
-            hasQuery = state.hasActiveQuery,
-            onCreateRow = onCreateRow,
-            onResetQuery = onResetQuery,
-        )
+        if (state.loading) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        } else {
+            EmptyRecords(
+                hasQuery = state.hasActiveQuery,
+                onCreateRow = onCreateRow,
+                onResetQuery = onResetQuery,
+            )
+        }
         return
     }
     LazyVerticalGrid(

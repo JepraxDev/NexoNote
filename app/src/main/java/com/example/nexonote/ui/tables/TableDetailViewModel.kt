@@ -1,6 +1,5 @@
 package com.example.nexonote.ui.tables
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -295,7 +294,6 @@ class TableDetailViewModel(
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                Log.e("TableDetailViewModel", "No se pudieron cargar los registros", error)
                 rowsState.update {
                     it.copy(
                         loading = false,
@@ -308,6 +306,7 @@ class TableDetailViewModel(
     }
 
     private fun perform(action: suspend () -> Unit) {
+        if (operation.value.busy) return
         viewModelScope.launch {
             operation.value = DetailOperation(busy = true)
             try {

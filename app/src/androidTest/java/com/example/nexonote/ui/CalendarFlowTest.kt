@@ -9,6 +9,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.example.nexonote.data.RecordingEventScheduler
 import com.example.nexonote.data.local.NexoDatabase
 import com.example.nexonote.data.repository.LocalEventRepository
+import com.example.nexonote.data.repository.LocalOrganizationRepository
 import com.example.nexonote.data.repository.LocalTaskRepository
 import com.example.nexonote.domain.model.*
 import com.example.nexonote.testing.FakeReminderScheduler
@@ -34,8 +35,9 @@ class CalendarFlowTest {
         db = Room.inMemoryDatabaseBuilder(InstrumentationRegistry.getInstrumentation().targetContext, NexoDatabase::class.java).build()
         events = LocalEventRepository(db, RecordingEventScheduler())
         val tasks = LocalTaskRepository(db, FakeReminderScheduler())
+        val organization = LocalOrganizationRepository(db)
         taskId = runBlocking { tasks.save(null, TaskInput("Tarea del calendario", dueAt = calendarDay(System.currentTimeMillis()) + 36000000)) }
-        val model = CalendarViewModel(events, tasks, androidx.lifecycle.SavedStateHandle()).also { models.put("calendar", it) }
+        val model = CalendarViewModel(events, tasks, organization, androidx.lifecycle.SavedStateHandle()).also { models.put("calendar", it) }
         compose.setContent { NexoNoteTheme { CalendarRoute(model, {}, { openedTask = it }) } }
         compose.waitUntil(10_000) { compose.onAllNodesWithTag("new_event").fetchSemanticsNodes().isNotEmpty() }
     }

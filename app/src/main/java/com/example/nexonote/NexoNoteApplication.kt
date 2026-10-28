@@ -11,5 +11,6 @@ class NexoNoteApplication : Application() {
         super.onCreate()
         ReminderNotifications.createChannel(this)
         com.example.nexonote.reminder.EventRescheduleWorker.enqueue(this)
+        container.startBackupSchedule()
     }
 }

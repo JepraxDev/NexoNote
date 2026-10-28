@@ -14,6 +14,7 @@ import com.example.nexonote.domain.model.TaskStatus
 import com.example.nexonote.domain.model.startOfDay
 import com.example.nexonote.domain.model.taskReminderAt
 import com.example.nexonote.domain.model.validateTaskInput
+import com.example.nexonote.domain.repository.OrganizationRepository
 import com.example.nexonote.domain.repository.TaskRepository
 import java.util.Calendar
 import java.util.Locale
@@ -47,6 +48,11 @@ data class TaskEditorUiState(
     val recurrenceEndAt: Long? = null,
     val labels: List<String> = emptyList(),
     val availableLabels: List<String> = emptyList(),
+    val favorite: Boolean = false,
+    val folderId: Long? = null,
+    val categoryId: Long? = null,
+    val folders: List<com.example.nexonote.domain.model.Folder> = emptyList(),
+    val categories: List<com.example.nexonote.domain.model.Category> = emptyList(),
     val subtasks: List<TaskSubtaskRow> = emptyList(),
     val saving: Boolean = false,
     val savedAt: Long? = null,
@@ -56,6 +62,7 @@ data class TaskEditorUiState(
 
 class TaskEditorViewModel(
     private val repository: TaskRepository,
+    private val organization: OrganizationRepository,
     private val requestedId: Long?,
     private val clock: () -> Long = System::currentTimeMillis,
 ) : ViewModel() {
@@ -69,6 +76,16 @@ class TaskEditorViewModel(
         viewModelScope.launch {
             repository.labels.collect { labels ->
                 _uiState.update { it.copy(availableLabels = labels) }
+            }
+        }
+        viewModelScope.launch {
+            organization.folders.collect { folders ->
+                _uiState.update { it.copy(folders = folders) }
+            }
+        }
+        viewModelScope.launch {
+            organization.categories.collect { categories ->
+                _uiState.update { it.copy(categories = categories) }
             }
         }
         if (requestedId == null) {
@@ -94,6 +111,11 @@ class TaskEditorViewModel(
                         recurrenceEndAt = task.recurrenceEndAt,
                         labels = task.labels,
                         availableLabels = _uiState.value.availableLabels,
+                        favorite = task.favorite,
+                        folderId = task.folderId,
+                        categoryId = task.categoryId,
+                        folders = _uiState.value.folders,
+                        categories = _uiState.value.categories,
                         subtasks = task.subtasks.map {
                             TaskSubtaskRow(++nextSubtaskKey, it.text, it.completed)
                         },
@@ -232,6 +254,18 @@ class TaskEditorViewModel(
 
     fun removeLabel(label: String) {
         _uiState.update { it.copy(labels = it.labels - label, dirty = true) }
+    }
+
+    fun setFolder(value: Long?) {
+        _uiState.update { if (it.folderId == value) it else it.copy(folderId = value, dirty = true) }
+    }
+
+    fun setCategory(value: Long?) {
+        _uiState.update { if (it.categoryId == value) it else it.copy(categoryId = value, dirty = true) }
+    }
+
+    fun toggleFavorite() {
+        _uiState.update { it.copy(favorite = !it.favorite, dirty = true) }
     }
 
     fun addSubtask() {
@@ -398,7 +432,11 @@ class TaskEditorViewModel(
         fun factory(container: AppContainer, taskId: Long?): ViewModelProvider.Factory =
             viewModelFactory {
                 initializer {
-                    TaskEditorViewModel(container.taskRepository, taskId)
+                    TaskEditorViewModel(
+                        container.taskRepository,
+                        container.organizationRepository,
+                        taskId,
+                    )
                 }
             }
     }
@@ -417,4 +455,7 @@ private fun TaskEditorUiState.toInput() = TaskInput(
     recurrenceEndAt = recurrenceEndAt,
     labels = labels,
     subtasks = subtasks.map { SubtaskDraft(it.text, it.completed) },
+    favorite = favorite,
+    folderId = folderId,
+    categoryId = categoryId,
 )

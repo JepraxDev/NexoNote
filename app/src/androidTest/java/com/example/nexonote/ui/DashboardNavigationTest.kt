@@ -14,6 +14,7 @@ import com.example.nexonote.data.local.NexoDatabase
 import com.example.nexonote.data.repository.LocalActivityRepository
 import com.example.nexonote.data.repository.LocalEntryRepository
 import com.example.nexonote.data.repository.LocalNoteRepository
+import com.example.nexonote.data.repository.LocalOrganizationRepository
 import com.example.nexonote.data.repository.LocalTableRepository
 import com.example.nexonote.data.repository.LocalTaskRepository
 import com.example.nexonote.domain.model.ThemeMode
@@ -48,6 +49,7 @@ class DashboardNavigationTest {
         val notes = LocalNoteRepository(database)
         val tasks = LocalTaskRepository(database, FakeReminderScheduler())
         val tables = LocalTableRepository(database)
+        val organization = LocalOrganizationRepository(database)
         val activities = LocalActivityRepository(database.entryDao())
         val settings = object : SettingsRepository {
             override val themeMode = MutableStateFlow(ThemeMode.SYSTEM)
@@ -68,7 +70,7 @@ class DashboardNavigationTest {
         val editorFactory: (Long?) -> androidx.lifecycle.ViewModelProvider.Factory = { noteId ->
             viewModelFactory {
                 initializer {
-                    NoteEditorViewModel(notes, noteId).also { models.put("editor-$noteId", it) }
+                    NoteEditorViewModel(notes, organization, noteId).also { models.put("editor-$noteId", it) }
                 }
             }
         }
@@ -78,12 +80,12 @@ class DashboardNavigationTest {
         val taskEditorFactory: (Long?) -> androidx.lifecycle.ViewModelProvider.Factory = { taskId ->
             viewModelFactory {
                 initializer {
-                    TaskEditorViewModel(tasks, taskId).also { models.put("task-editor-$taskId", it) }
+                    TaskEditorViewModel(tasks, organization, taskId).also { models.put("task-editor-$taskId", it) }
                 }
             }
         }
         val tablesFactory = viewModelFactory {
-            initializer { TablesViewModel(tables).also { models.put("tables", it) } }
+            initializer { TablesViewModel(tables, organization).also { models.put("tables", it) } }
         }
         val tableDetailFactory: (Long) -> androidx.lifecycle.ViewModelProvider.Factory = { tableId ->
             viewModelFactory {

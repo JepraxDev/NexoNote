@@ -11,6 +11,7 @@ import com.example.nexonote.domain.model.NoteColor
 import com.example.nexonote.domain.model.NoteInput
 import com.example.nexonote.domain.model.NoteType
 import com.example.nexonote.domain.repository.NoteRepository
+import com.example.nexonote.domain.repository.OrganizationRepository
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -45,6 +46,10 @@ data class NoteEditorUiState(
     val checklist: List<ChecklistRow> = emptyList(),
     val labels: List<String> = emptyList(),
     val availableLabels: List<String> = emptyList(),
+    val folderId: Long? = null,
+    val categoryId: Long? = null,
+    val folders: List<com.example.nexonote.domain.model.Folder> = emptyList(),
+    val categories: List<com.example.nexonote.domain.model.Category> = emptyList(),
     val saving: Boolean = false,
     val savedAt: Long? = null,
     val error: String? = null,
@@ -52,6 +57,7 @@ data class NoteEditorUiState(
 
 class NoteEditorViewModel(
     private val repository: NoteRepository,
+    private val organization: OrganizationRepository,
     private val requestedId: Long?,
     private val clock: () -> Long = System::currentTimeMillis,
 ) : ViewModel() {
@@ -73,6 +79,16 @@ class NoteEditorViewModel(
         viewModelScope.launch {
             repository.labels.collect { labels ->
                 _uiState.update { it.copy(availableLabels = labels) }
+            }
+        }
+        viewModelScope.launch {
+            organization.folders.collect { folders ->
+                _uiState.update { it.copy(folders = folders) }
+            }
+        }
+        viewModelScope.launch {
+            organization.categories.collect { categories ->
+                _uiState.update { it.copy(categories = categories) }
             }
         }
         if (requestedId != null) {
@@ -97,6 +113,10 @@ class NoteEditorViewModel(
                         },
                         labels = note.labels,
                         availableLabels = _uiState.value.availableLabels,
+                        folderId = note.folderId,
+                        categoryId = note.categoryId,
+                        folders = _uiState.value.folders,
+                        categories = _uiState.value.categories,
                         savedAt = note.modifiedAt,
                     )
                 }
@@ -177,8 +197,19 @@ class NoteEditorViewModel(
         contentChanged(immediate = true)
     }
 
-    fun togglePinned() {
-        val pinned = !_uiState.value.pinned
+    fun setFolder(value: Long?) {
+        if (_uiState.value.folderId == value) return
+        _uiState.update { it.copy(folderId = value) }
+        contentChanged(immediate = true)
+    }
+
+    fun setCategory(value: Long?) {
+        if (_uiState.value.categoryId == value) return
+        _uiState.update { it.copy(categoryId = value) }
+        contentChanged(immediate = true)
+    }
+
+    fun togglePinned() {        val pinned = !_uiState.value.pinned
         _uiState.update { it.copy(pinned = pinned) }
         contentChanged(immediate = true)
         savedId?.let { id -> runOperation { repository.setPinned(id, pinned) } }
@@ -314,7 +345,7 @@ class NoteEditorViewModel(
     companion object {
         fun factory(container: AppContainer, noteId: Long?): ViewModelProvider.Factory =
             viewModelFactory {
-                initializer { NoteEditorViewModel(container.noteRepository, noteId) }
+                initializer { NoteEditorViewModel(container.noteRepository, container.organizationRepository, noteId) }
             }
     }
 }
@@ -328,4 +359,6 @@ private fun NoteEditorUiState.toInput() = NoteInput(
     favorite = favorite,
     checklist = checklist.map { ChecklistDraft(it.text, it.checked) },
     labels = labels,
+    folderId = folderId,
+    categoryId = categoryId,
 )

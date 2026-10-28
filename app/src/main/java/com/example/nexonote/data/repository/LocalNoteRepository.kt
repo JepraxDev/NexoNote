@@ -41,6 +41,16 @@ class LocalNoteRepository(
         val type = input.type
         val color = input.color
         val summary = summaryFor(input)
+        if (input.folderId != null) {
+            require(database.organizationDao().findFolder(input.folderId) != null) {
+                "La carpeta seleccionada ya no existe."
+            }
+        }
+        if (input.categoryId != null) {
+            require(database.organizationDao().findCategory(input.categoryId) != null) {
+                "La categoría seleccionada ya no existe."
+            }
+        }
 
         val noteId = if (id == null) {
             require(input.hasContent) { "La nota está vacía." }
@@ -65,6 +75,8 @@ class LocalNoteRepository(
                     trashedAt = null,
                     createdAt = now,
                     modifiedAt = now,
+                    folderId = input.folderId,
+                    categoryId = input.categoryId,
                 )
             )
             entryDao.insertActivity(
@@ -82,6 +94,8 @@ class LocalNoteRepository(
                     pinned = input.pinned,
                     favorite = input.favorite,
                     modifiedAt = now,
+                    folderId = input.folderId,
+                    categoryId = input.categoryId,
                 )
             )
             entryDao.updateNoteSummary(id, summary, now)
@@ -180,5 +194,7 @@ private fun NoteWithDetails.toDomain(): Note {
         checklist = checklist.sortedBy { it.position }.map {
             ChecklistItem(it.id, it.text, it.checked, it.position)
         },
+        folderId = note.folderId,
+        categoryId = note.categoryId,
     )
 }

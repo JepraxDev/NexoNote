@@ -5,6 +5,7 @@ import com.example.nexonote.domain.model.Note
 import com.example.nexonote.domain.model.NoteInput
 import com.example.nexonote.domain.model.NoteType
 import com.example.nexonote.domain.repository.NoteRepository
+import com.example.nexonote.testing.FakeOrganizationRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -96,7 +97,7 @@ class NoteEditorViewModelTest {
         repository: FakeNotes,
         noteId: Long? = null,
         name: String = noteId?.toString() ?: "new",
-    ) = NoteEditorViewModel(repository, noteId) { 1_000L }.also { store.put(name, it) }
+    ) = NoteEditorViewModel(repository, FakeOrganizationRepository(), noteId) { 1_000L }.also { store.put(name, it) }
 
     private class FakeNotes(private val existing: Note? = null) : NoteRepository {
         val saved = mutableListOf<NoteInput>()

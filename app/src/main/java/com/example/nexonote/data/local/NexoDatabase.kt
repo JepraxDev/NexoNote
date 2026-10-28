@@ -48,12 +48,27 @@ data class ActivityEntity(
 
 @Entity(
     tableName = "notes",
-    foreignKeys = [ForeignKey(
-        entity = EntryEntity::class,
-        parentColumns = ["id"],
-        childColumns = ["id"],
-        onDelete = ForeignKey.CASCADE,
-    )],
+    foreignKeys = [
+        ForeignKey(
+            entity = EntryEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["id"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+        ForeignKey(
+            entity = FolderEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["folderId"],
+            onDelete = ForeignKey.SET_NULL,
+        ),
+        ForeignKey(
+            entity = CategoryEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["categoryId"],
+            onDelete = ForeignKey.SET_NULL,
+        ),
+    ],
+    indices = [Index("folderId"), Index("categoryId"), Index("favorite")],
 )
 data class NoteEntity(
     @PrimaryKey val id: Long,
@@ -68,6 +83,8 @@ data class NoteEntity(
     val trashedAt: Long?,
     val createdAt: Long?,
     val modifiedAt: Long?,
+    val folderId: Long? = null,
+    val categoryId: Long? = null,
 )
 
 @Entity(
@@ -92,6 +109,7 @@ data class ChecklistItemEntity(
 data class LabelEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
+    @ColumnInfo(defaultValue = "#6750A4") val color: String = "#6750A4",
 )
 
 @Entity(
@@ -136,15 +154,32 @@ data class NoteWithDetails(
 
 @Entity(
     tableName = "tasks",
-    foreignKeys = [ForeignKey(
-        entity = EntryEntity::class,
-        parentColumns = ["id"],
-        childColumns = ["id"],
-        onDelete = ForeignKey.CASCADE,
-    )],
+    foreignKeys = [
+        ForeignKey(
+            entity = EntryEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["id"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+        ForeignKey(
+            entity = FolderEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["folderId"],
+            onDelete = ForeignKey.SET_NULL,
+        ),
+        ForeignKey(
+            entity = CategoryEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["categoryId"],
+            onDelete = ForeignKey.SET_NULL,
+        ),
+    ],
     indices = [
         Index("status"),
         Index("dueAt"),
+        Index("folderId"),
+        Index("categoryId"),
+        Index("favorite"),
         Index(value = ["seriesId", "occurrenceAt"], unique = true),
     ],
 )
@@ -165,6 +200,9 @@ data class TaskEntity(
     val occurrenceAt: Long?,
     val createdAt: Long?,
     val modifiedAt: Long?,
+    val favorite: Boolean = false,
+    val folderId: Long? = null,
+    val categoryId: Long? = null,
 )
 
 @Entity(
@@ -227,13 +265,27 @@ data class TaskWithDetails(
 
 @Entity(
     tableName = "custom_tables",
-    foreignKeys = [ForeignKey(
-        entity = EntryEntity::class,
-        parentColumns = ["id"],
-        childColumns = ["id"],
-        onDelete = ForeignKey.CASCADE,
-    )],
-    indices = [Index("modifiedAt")],
+    foreignKeys = [
+        ForeignKey(
+            entity = EntryEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["id"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+        ForeignKey(
+            entity = FolderEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["folderId"],
+            onDelete = ForeignKey.SET_NULL,
+        ),
+        ForeignKey(
+            entity = CategoryEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["categoryId"],
+            onDelete = ForeignKey.SET_NULL,
+        ),
+    ],
+    indices = [Index("modifiedAt"), Index("folderId"), Index("categoryId"), Index("favorite")],
 )
 data class CustomTableEntity(
     @PrimaryKey val id: Long,
@@ -243,6 +295,9 @@ data class CustomTableEntity(
     val color: String,
     val createdAt: Long?,
     val modifiedAt: Long?,
+    val favorite: Boolean = false,
+    val folderId: Long? = null,
+    val categoryId: Long? = null,
 )
 
 @Entity(
@@ -341,6 +396,9 @@ data class TableSummaryEntity(
     val modifiedAt: Long?,
     val columnCount: Int,
     val rowCount: Int,
+    val favorite: Boolean = false,
+    val folderId: Long? = null,
+    val categoryId: Long? = null,
 )
 
 data class RecentTableRowEntity(
@@ -582,6 +640,7 @@ interface TableDao {
     @Query(
         """
         SELECT t.id, t.name, t.description, t.icon, t.color, t.createdAt, t.modifiedAt,
+            t.favorite, t.folderId, t.categoryId,
             (SELECT COUNT(*) FROM custom_columns c WHERE c.tableId = t.id) AS columnCount,
             (SELECT COUNT(*) FROM custom_rows r WHERE r.tableId = t.id) AS rowCount
         FROM custom_tables t
@@ -592,6 +651,9 @@ interface TableDao {
 
     @Query("SELECT * FROM custom_tables WHERE id = :id")
     fun observeTable(id: Long): Flow<CustomTableEntity?>
+
+    @Query("SELECT * FROM table_labels")
+    fun observeAllTableLabels(): Flow<List<TableLabelCrossRef>>
 
     @Query("SELECT * FROM custom_columns WHERE tableId = :tableId ORDER BY position, id")
     fun observeColumns(tableId: Long): Flow<List<CustomColumnEntity>>
@@ -759,8 +821,13 @@ interface TableDao {
         ColumnOptionEntity::class,
         CustomRowEntity::class,
         CustomCellEntity::class,
+        FolderEntity::class,
+        CategoryEntity::class,
+        TableLabelCrossRef::class,
+        EventLabelCrossRef::class,
+        SavedViewEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = true,
 )
 abstract class NexoDatabase : RoomDatabase() {
@@ -769,4 +836,5 @@ abstract class NexoDatabase : RoomDatabase() {
     abstract fun noteDao(): NoteDao
     abstract fun taskDao(): TaskDao
     abstract fun tableDao(): TableDao
+    abstract fun organizationDao(): OrganizationDao
 }

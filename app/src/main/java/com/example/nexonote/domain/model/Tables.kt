@@ -89,6 +89,10 @@ data class CustomTable(
     val rowCount: Int = 0,
     val createdAt: Long? = null,
     val modifiedAt: Long? = null,
+    val favorite: Boolean = false,
+    val folderId: Long? = null,
+    val categoryId: Long? = null,
+    val tags: List<String> = emptyList(),
 ) {
     val displayName: String get() = name.ifBlank { "Tabla sin título" }
 }
@@ -123,6 +127,10 @@ data class TableInput(
     val description: String = "",
     val icon: TableIcon = TableIcon.GRID,
     val color: String = DEFAULT_TABLE_COLOR,
+    val folderId: Long? = null,
+    val categoryId: Long? = null,
+    val favorite: Boolean = false,
+    val tags: List<String> = emptyList(),
 )
 
 data class ColumnInput(

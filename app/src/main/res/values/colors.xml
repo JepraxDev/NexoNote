@@ -7,4 +7,6 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <!-- Matches Material 3 light surface so the cold-start window does not flash white. -->
+    <color name="splash_background">#FFFBFE</color>
 </resources>

@@ -1,15 +1,30 @@
 package com.example.nexonote.ui
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.ImportExport
+import androidx.compose.material.icons.outlined.MoreVert
+import com.example.nexonote.domain.model.ContentType
+import com.example.nexonote.domain.model.OrganizationItem
+import com.example.nexonote.navigation.OrganizationRoutes
 import com.example.nexonote.ui.calendar.CalendarViewModel
 import com.example.nexonote.ui.calendar.CalendarRoute
 import com.example.nexonote.ui.calendar.CalendarDashboardCard
+import com.example.nexonote.ui.organization.FavoritesRoute
+import com.example.nexonote.ui.organization.FavoritesViewModel
+import com.example.nexonote.ui.organization.FoldersRoute
+import com.example.nexonote.ui.organization.FoldersViewModel
+import com.example.nexonote.ui.organization.GlobalSearchRoute
+import com.example.nexonote.ui.organization.SearchViewModel
+import com.example.nexonote.ui.organization.StatisticsRoute
+import com.example.nexonote.ui.organization.StatisticsViewModel
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -21,6 +36,7 @@ import com.example.nexonote.navigation.Destination
 import com.example.nexonote.navigation.NoteRoutes
 import com.example.nexonote.navigation.TableRoutes
 import com.example.nexonote.navigation.TaskRoutes
+import com.example.nexonote.navigation.TransferRoutes
 import com.example.nexonote.ui.dashboard.DashboardRoute
 import com.example.nexonote.ui.dashboard.DashboardViewModel
 import com.example.nexonote.ui.notes.NoteEditorRoute
@@ -36,6 +52,15 @@ import com.example.nexonote.ui.tasks.TaskEditorRoute
 import com.example.nexonote.ui.tasks.TaskEditorViewModel
 import com.example.nexonote.ui.tasks.TaskListRoute
 import com.example.nexonote.ui.tasks.TaskListViewModel
+import com.example.nexonote.ui.transfer.BackupRoute
+import com.example.nexonote.ui.transfer.BackupViewModel
+import com.example.nexonote.ui.transfer.ExportRoute
+import com.example.nexonote.ui.transfer.ExportViewModel
+import com.example.nexonote.ui.transfer.ImportRoute
+import com.example.nexonote.ui.transfer.ImportViewModel
+import com.example.nexonote.ui.transfer.RestoreRoute
+import com.example.nexonote.ui.transfer.RestoreViewModel
+import com.example.nexonote.ui.transfer.TransferFactories
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,16 +79,29 @@ fun NexoNoteApp(
     calendarFactory: ViewModelProvider.Factory? = null,
     pendingEventDate: Long? = null,
     onPendingEventHandled: () -> Unit = {},
+    organizationFactories: OrganizationFactories? = null,
+    transferFactories: TransferFactories? = null,
 ) {
     val controller = rememberNavController()
     val backStack by controller.currentBackStackEntryAsState()
-    val isEditor = backStack?.destination?.route == NoteRoutes.EDITOR ||
-        backStack?.destination?.route == TaskRoutes.EDITOR ||
-        backStack?.destination?.route == TableRoutes.DETAIL ||
-        backStack?.destination?.route == "calendar?date={date}"
-    val current = Destination.entries.firstOrNull { it.route == backStack?.destination?.route }
+    val route = backStack?.destination?.route
+    val chromeHidden = route == NoteRoutes.EDITOR ||
+        route == TaskRoutes.EDITOR ||
+        route == TableRoutes.DETAIL ||
+        route == "calendar?date={date}" ||
+        route == OrganizationRoutes.FOLDERS ||
+        route == OrganizationRoutes.FAVORITES ||
+        route == OrganizationRoutes.SEARCH ||
+        route == OrganizationRoutes.STATISTICS ||
+        route == TransferRoutes.EXPORT ||
+        route == TransferRoutes.IMPORT ||
+        route == TransferRoutes.BACKUP ||
+        route == TransferRoutes.RESTORE
+    val current = Destination.entries.firstOrNull { it.route == route }
         ?: Destination.HOME
     val snackbar = remember { SnackbarHostState() }
+    var organizationMenu by remember { mutableStateOf(false) }
+    var transferMenu by remember { mutableStateOf(false) }
     LaunchedEffect(state.error) {
         state.error?.let {
             snackbar.showSnackbar(it)
@@ -99,6 +137,23 @@ fun NexoNoteApp(
         }
     }
     val openCalendar: () -> Unit = { controller.navigate("calendar") { launchSingleTop = true } }
+    val openOrganization: (String) -> Unit = { destination ->
+        controller.navigate(destination) { launchSingleTop = true }
+    }
+    val openTransfer: (String) -> Unit = { destination ->
+        controller.navigate(destination) { launchSingleTop = true }
+    }
+    val openOrganizationItem: (OrganizationItem) -> Unit = { item ->
+        when (item.type) {
+            ContentType.NOTE -> openNote(item.id)
+            ContentType.TASK -> openTask(item.id)
+            ContentType.TABLE -> openTable(item.id)
+            ContentType.EVENT -> {
+                val date = item.date ?: System.currentTimeMillis()
+                controller.navigate("calendar?date=$date") { launchSingleTop = true }
+            }
+        }
+    }
     LaunchedEffect(pendingEventDate) {
         pendingEventDate?.let {
             controller.navigate("calendar?date=$it") { launchSingleTop = true }
@@ -107,22 +162,78 @@ fun NexoNoteApp(
     }
     Scaffold(
         topBar = {
-            if (!isEditor) {
+            if (!chromeHidden) {
                 TopAppBar(title = { Text(if (current == Destination.HOME) "NexoNote" else current.label) }, actions = {
                     if (calendarFactory != null) IconButton(onClick = openCalendar) { Icon(Icons.Outlined.CalendarMonth, "Abrir calendario") }
+                    if (organizationFactories != null) {
+                        Box {
+                            IconButton(onClick = { organizationMenu = true }) {
+                                Icon(Icons.Outlined.MoreVert, contentDescription = "Organización y estadísticas")
+                            }
+                            DropdownMenu(
+                                expanded = organizationMenu,
+                                onDismissRequest = { organizationMenu = false },
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Carpetas, categorías y etiquetas") },
+                                    onClick = { organizationMenu = false; openOrganization(OrganizationRoutes.FOLDERS) },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Favoritos") },
+                                    onClick = { organizationMenu = false; openOrganization(OrganizationRoutes.FAVORITES) },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Búsqueda global") },
+                                    onClick = { organizationMenu = false; openOrganization(OrganizationRoutes.SEARCH) },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Estadísticas") },
+                                    onClick = { organizationMenu = false; openOrganization(OrganizationRoutes.STATISTICS) },
+                                )
+                            }
+                        }
+                    }
+                    if (transferFactories != null) {
+                        Box {
+                            IconButton(onClick = { transferMenu = true }) {
+                                Icon(Icons.Outlined.ImportExport, contentDescription = "Datos y copias")
+                            }
+                            DropdownMenu(
+                                expanded = transferMenu,
+                                onDismissRequest = { transferMenu = false },
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Exportar notas, tareas o tablas") },
+                                    onClick = { transferMenu = false; openTransfer(TransferRoutes.EXPORT) },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Importar tabla desde CSV o XLSX") },
+                                    onClick = { transferMenu = false; openTransfer(TransferRoutes.IMPORT) },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Copias de seguridad") },
+                                    onClick = { transferMenu = false; openTransfer(TransferRoutes.BACKUP) },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Restaurar una copia") },
+                                    onClick = { transferMenu = false; openTransfer(TransferRoutes.RESTORE) },
+                                )
+                            }
+                        }
+                    }
                 })
             }
         },
         snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = {
-            if (!isEditor) {
+            if (!chromeHidden) {
                 NavigationBar {
                     Destination.entries.forEach { destination ->
                         NavigationBarItem(
                             selected = current == destination,
                             onClick = { navigate(destination) },
                             icon = { Icon(destination.icon, contentDescription = null) },
-                            label = { Text(destination.label, maxLines = 1) },
+                            label = { Text(destination.label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                             modifier = Modifier.testTag("nav_${destination.route}"),
                         )
                     }
@@ -149,6 +260,7 @@ fun NexoNoteApp(
                     openNote = openNote,
                     openTask = openTask,
                     openTable = openTable,
+                    onOpenOrganization = openOrganization,
                     calendarContent = {
                         if (calendarFactory != null) {
                             val calendar: CalendarViewModel = viewModel(key = "dashboard_calendar", factory = calendarFactory)
@@ -183,7 +295,16 @@ fun NexoNoteApp(
                     onOpen = openTable,
                 )
             }
-            composable(Destination.SETTINGS.route) { SettingsScreen(state, model::setThemeMode) }
+            composable(Destination.SETTINGS.route) {
+                SettingsScreen(
+                    state = state,
+                    setTheme = model::setThemeMode,
+                    onOpenExport = transferFactories?.let { { openTransfer(TransferRoutes.EXPORT) } },
+                    onOpenImport = transferFactories?.let { { openTransfer(TransferRoutes.IMPORT) } },
+                    onOpenBackup = transferFactories?.let { { openTransfer(TransferRoutes.BACKUP) } },
+                    onOpenRestore = transferFactories?.let { { openTransfer(TransferRoutes.RESTORE) } },
+                )
+            }
             composable("calendar?date={date}", arguments = listOf(navArgument("date") { type = NavType.LongType; defaultValue = 0L })) { entry ->
                 if (calendarFactory != null) {
                     val calendar: CalendarViewModel = viewModel(factory = calendarFactory)
@@ -219,6 +340,63 @@ fun NexoNoteApp(
                     onOpenTable = openTable,
                 )
             }
+            if (organizationFactories != null) {
+                composable(OrganizationRoutes.FOLDERS) {
+                    val folders: FoldersViewModel = viewModel(factory = organizationFactories.folders)
+                    FoldersRoute(folders) { controller.popBackStack() }
+                }
+                composable(OrganizationRoutes.FAVORITES) {
+                    val favorites: FavoritesViewModel = viewModel(factory = organizationFactories.favorites)
+                    FavoritesRoute(favorites, { controller.popBackStack() }, openOrganizationItem)
+                }
+                composable(OrganizationRoutes.SEARCH) {
+                    val search: SearchViewModel = viewModel(factory = organizationFactories.search)
+                    GlobalSearchRoute(search, { controller.popBackStack() }, openOrganizationItem)
+                }
+                composable(OrganizationRoutes.STATISTICS) {
+                    val statistics: StatisticsViewModel = viewModel(factory = organizationFactories.statistics)
+                    StatisticsRoute(statistics) { controller.popBackStack() }
+                }
+            }
+            if (transferFactories != null) {
+                composable(TransferRoutes.EXPORT) {
+                    val export: ExportViewModel = viewModel(factory = transferFactories.export)
+                    ExportRoute(export) { controller.popBackStack() }
+                }
+                composable(TransferRoutes.IMPORT) {
+                    val importer: ImportViewModel = viewModel(factory = transferFactories.importer)
+                    ImportRoute(importer) { controller.popBackStack() }
+                }
+                composable(TransferRoutes.BACKUP) {
+                    val backup: BackupViewModel = viewModel(factory = transferFactories.backup)
+                    BackupRoute(
+                        model = backup,
+                        onBack = { controller.popBackStack() },
+                        onOpenRestore = { uri -> openTransfer(TransferRoutes.restore(uri.toString())) },
+                    )
+                }
+                composable(
+                    route = TransferRoutes.RESTORE,
+                    arguments = listOf(
+                        navArgument(TransferRoutes.RESTORE_URI) {
+                            type = NavType.StringType
+                            nullable = true
+                            defaultValue = null
+                        }
+                    ),
+                ) { entry ->
+                    val uri = entry.arguments?.getString(TransferRoutes.RESTORE_URI)
+                    val restore: RestoreViewModel = viewModel(factory = transferFactories.restore(uri))
+                    RestoreRoute(restore) { controller.popBackStack() }
+                }
+            }
         }
     }
 }
+
+data class OrganizationFactories(
+    val folders: ViewModelProvider.Factory,
+    val favorites: ViewModelProvider.Factory,
+    val search: ViewModelProvider.Factory,
+    val statistics: ViewModelProvider.Factory,
+)

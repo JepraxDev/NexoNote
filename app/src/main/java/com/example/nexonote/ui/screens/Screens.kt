@@ -1,6 +1,7 @@
 package com.example.nexonote.ui.screens
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
@@ -8,6 +9,10 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Restore
+import androidx.compose.material.icons.outlined.SettingsBackupRestore
+import androidx.compose.material.icons.outlined.Upload
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -119,7 +124,14 @@ fun CollectionScreen(
 }
 
 @Composable
-fun SettingsScreen(state: NexoUiState, setTheme: (ThemeMode) -> Unit) {
+fun SettingsScreen(
+    state: NexoUiState,
+    setTheme: (ThemeMode) -> Unit,
+    onOpenExport: (() -> Unit)? = null,
+    onOpenImport: (() -> Unit)? = null,
+    onOpenBackup: (() -> Unit)? = null,
+    onOpenRestore: (() -> Unit)? = null,
+) {
     LazyColumn(contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item {
             Text("Hazlo tuyo", style = MaterialTheme.typography.headlineMedium)
@@ -147,9 +159,83 @@ fun SettingsScreen(state: NexoUiState, setTheme: (ThemeMode) -> Unit) {
                 }
             }
         }
+        if (onOpenExport != null || onOpenImport != null || onOpenBackup != null || onOpenRestore != null) {
+            item {
+                OutlinedCard(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text("Datos y copias", style = MaterialTheme.typography.titleLarge)
+                        Text(
+                            "Exporta, importa o protege tu información. No se piden permisos de almacenamiento amplios.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        onOpenExport?.let {
+                            DataAction(
+                                icon = Icons.Outlined.Download,
+                                title = "Exportar",
+                                description = "Notas en PDF, TXT o Markdown; tareas y tablas en CSV o XLSX.",
+                                onClick = it,
+                            )
+                        }
+                        onOpenImport?.let {
+                            DataAction(
+                                icon = Icons.Outlined.Upload,
+                                title = "Importar tabla",
+                                description = "Carga un CSV o XLSX con vista previa y asignación de columnas.",
+                                onClick = it,
+                            )
+                        }
+                        onOpenBackup?.let {
+                            DataAction(
+                                icon = Icons.Outlined.SettingsBackupRestore,
+                                title = "Copias de seguridad",
+                                description = "Crea copias verificadas, prográmalas o elimínalas del historial.",
+                                onClick = it,
+                            )
+                        }
+                        onOpenRestore?.let {
+                            DataAction(
+                                icon = Icons.Outlined.Restore,
+                                title = "Restaurar",
+                                description = "Valida una copia y recupérala de forma atómica.",
+                                onClick = it,
+                            )
+                        }
+                    }
+                }
+            }
+        }
         item {
             Text("NexoNote · Base nativa", style = MaterialTheme.typography.titleMedium)
             Text("Tus elementos se guardan localmente con Room y tu apariencia con DataStore.")
+        }
+    }
+}
+
+/** One tappable row of the "Datos y copias" settings card. */
+@Composable
+private fun DataAction(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    description: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleSmall)
+            Text(
+                description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

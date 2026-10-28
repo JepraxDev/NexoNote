@@ -8,6 +8,7 @@ import com.example.nexonote.domain.model.TaskPriority
 import com.example.nexonote.domain.model.TaskRecurrence
 import com.example.nexonote.domain.model.TaskStatus
 import com.example.nexonote.domain.repository.TaskRepository
+import com.example.nexonote.testing.FakeOrganizationRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -36,7 +37,7 @@ class TaskEditorViewModelTest {
     }
 
     @Test fun newTaskRequiresTitleAndSavesAllFields() = runTest {
-        val model = TaskEditorViewModel(repository, null) { 5_000L }.also { store.put("editor", it) }
+        val model = TaskEditorViewModel(repository, FakeOrganizationRepository(), null) { 5_000L }.also { store.put("editor", it) }
         runCurrent()
         var result: Boolean? = null
         model.save { result = it }
@@ -85,7 +86,7 @@ class TaskEditorViewModelTest {
             status = TaskStatus.PENDING,
             subtasks = listOf(Subtask(1, "Maleta", false), Subtask(2, "Pasaporte", false)),
         )
-        val model = TaskEditorViewModel(repository, 3).also { store.put("editor", it) }
+        val model = TaskEditorViewModel(repository, FakeOrganizationRepository(), 3).also { store.put("editor", it) }
         runCurrent()
         assertEquals("Preparar viaje", model.uiState.value.title)
 
@@ -105,7 +106,7 @@ class TaskEditorViewModelTest {
             recurrence = TaskRecurrence.DAILY,
             recurrenceEndAt = date(2026, 5, 20),
         )
-        val model = TaskEditorViewModel(repository, 4).also { store.put("editor", it) }
+        val model = TaskEditorViewModel(repository, FakeOrganizationRepository(), 4).also { store.put("editor", it) }
         runCurrent()
         model.setDueDate(null)
         val state = model.uiState.value
@@ -122,7 +123,7 @@ class TaskEditorViewModelTest {
             dueAt = date(2026, 5, 12),
             recurrence = TaskRecurrence.MONTHLY,
         )
-        val model = TaskEditorViewModel(repository, 5).also { store.put("editor", it) }
+        val model = TaskEditorViewModel(repository, FakeOrganizationRepository(), 5).also { store.put("editor", it) }
         runCurrent()
         model.stopRecurrence()
         runCurrent()

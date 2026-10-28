@@ -8,6 +8,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -19,6 +22,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import com.example.nexonote.domain.model.*
+import com.example.nexonote.ui.organization.OrganizationFields
+import com.example.nexonote.ui.organization.TagSelectionSection
 import java.text.DateFormat
 import java.util.Calendar
 import java.util.Date
@@ -71,6 +76,9 @@ private fun EventTimeDialog(initial: Long, onDismiss: () -> Unit, onTime: (Long)
 @Composable
 fun EventEditor(
     initial: EventInput, editing: Boolean, series: Boolean, busy: Boolean, error: String?,
+    folders: List<Folder> = emptyList(),
+    categories: List<Category> = emptyList(),
+    availableTags: List<Tag> = emptyList(),
     onDismiss: () -> Unit, onSave: (EventInput) -> Unit, onDelete: () -> Unit,
 ) {
     var title by rememberSaveable { mutableStateOf(initial.title) }
@@ -83,20 +91,43 @@ fun EventEditor(
     var recurrence by rememberSaveable { mutableStateOf(initial.recurrence.name) }
     var until by rememberSaveable { mutableStateOf(initial.repeatUntil) }
     var reminder by rememberSaveable { mutableStateOf(initial.reminderMinutes) }
+    var folderId by rememberSaveable { mutableStateOf(initial.folderId) }
+    var categoryId by rememberSaveable { mutableStateOf(initial.categoryId) }
+    var favorite by rememberSaveable { mutableStateOf(initial.favorite) }
+    var tags by rememberSaveable { mutableStateOf(initial.tags) }
     var picker by rememberSaveable { mutableStateOf("") }
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     var permissionDenied by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> permissionDenied = !granted }
-    val input = EventInput(title, if (allDay) calendarDay(start) else start,
-        if (allDay) calendarAdd(calendarDay(end), Calendar.DAY_OF_YEAR, 1) else end,
-        description, allDay, color, category,
-        if (allDay) TimeZone.getDefault().id else initial.zoneId,
-        if (series || !editing) TaskRecurrence.valueOf(recurrence) else TaskRecurrence.NONE,
-        until, reminder)
+    val input = EventInput(
+        title = title,
+        startAt = if (allDay) calendarDay(start) else start,
+        endAt = if (allDay) calendarAdd(calendarDay(end), Calendar.DAY_OF_YEAR, 1) else end,
+        description = description,
+        allDay = allDay,
+        color = color,
+        category = category,
+        zoneId = if (allDay) TimeZone.getDefault().id else initial.zoneId,
+        recurrence = if (series || !editing) TaskRecurrence.valueOf(recurrence) else TaskRecurrence.NONE,
+        repeatUntil = until,
+        reminderMinutes = reminder,
+        favorite = favorite,
+        folderId = folderId,
+        categoryId = categoryId,
+        tags = tags,
+    )
     val validation = validateEvent(input)
     Dialog(onDismissRequest = { if (!busy) onDismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(Modifier.padding(16.dp).widthIn(max = 600.dp).fillMaxWidth().fillMaxHeight(0.94f), shape = MaterialTheme.shapes.extraLarge) {
+        Surface(
+            Modifier
+                .padding(16.dp)
+                .widthIn(max = 600.dp)
+                .fillMaxWidth()
+                .fillMaxHeight(0.94f)
+                .imePadding(),
+            shape = MaterialTheme.shapes.extraLarge,
+        ) {
             Column(Modifier.padding(20.dp)) {
                 Text(if (editing) "Editar evento" else "Nuevo evento", style = MaterialTheme.typography.headlineSmall)
                 Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -112,6 +143,38 @@ fun EventEditor(
                         if (!allDay) TextButton(onClick = { picker = "endTime" }) { Text(calendarTimeLabel(end)) } }
                     Text("Zona de la serie: ${initial.zoneId}. Horas mostradas en ${TimeZone.getDefault().id}.", style = MaterialTheme.typography.bodySmall)
                     OutlinedTextField(category, { category = it }, label = { Text("Categoría opcional") }, modifier = Modifier.fillMaxWidth())
+                    FilterChip(
+                        selected = favorite,
+                        onClick = { favorite = !favorite },
+                        label = { Text("Favorito") },
+                        leadingIcon = {
+                            Icon(
+                                if (favorite) Icons.Outlined.Star else Icons.Outlined.StarBorder,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        },
+                    )
+                    HorizontalDivider()
+                    OrganizationFields(
+                        folderId = folderId,
+                        categoryId = categoryId,
+                        folders = folders,
+                        categories = categories,
+                        onFolderChange = { folderId = it },
+                        onCategoryChange = { categoryId = it },
+                    )
+                    TagSelectionSection(
+                        selected = tags,
+                        available = availableTags,
+                        onAdd = { value ->
+                            val normalized = value.trim().lowercase()
+                            if (normalized.isNotEmpty() && normalized !in tags && tags.size < 20) {
+                                tags = tags + normalized
+                            }
+                        },
+                        onRemove = { value -> tags = tags - value },
+                    )
                     ChoiceMenu("Color", color, listOf("#6750A4", "#006A6A", "#B3261E", "#775A00", "#0061A4")) { color = it }
                     if (series || !editing) {
                         ChoiceMenu("Repetir", recurrenceLabel(TaskRecurrence.valueOf(recurrence)), TaskRecurrence.entries.map(::recurrenceLabel)) {

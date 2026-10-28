@@ -46,6 +46,16 @@ class LocalTaskRepository(
     override suspend fun save(id: Long?, input: TaskInput): Long {
         val error = validateTaskInput(input)
         require(error == null) { error.orEmpty() }
+        if (input.folderId != null) {
+            require(database.organizationDao().findFolder(input.folderId) != null) {
+                "La carpeta seleccionada ya no existe."
+            }
+        }
+        if (input.categoryId != null) {
+            require(database.organizationDao().findCategory(input.categoryId) != null) {
+                "La categoría seleccionada ya no existe."
+            }
+        }
         val now = clock()
         val title = input.title.trim()
         val description = input.description.trim()
@@ -99,6 +109,9 @@ class LocalTaskRepository(
                         occurrenceAt = null,
                         createdAt = now,
                         modifiedAt = now,
+                        favorite = input.favorite,
+                        folderId = input.folderId,
+                        categoryId = input.categoryId,
                     )
                 )
                 entryDao.insertActivity(
@@ -128,6 +141,9 @@ class LocalTaskRepository(
                         occurrenceAt = occurrenceAt,
                         createdAt = createdAt,
                         modifiedAt = now,
+                        favorite = input.favorite,
+                        folderId = input.folderId,
+                        categoryId = input.categoryId,
                     )
                 )
                 entryDao.updateTaskSummary(
@@ -300,6 +316,9 @@ class LocalTaskRepository(
                 occurrenceAt = occurrence.dueAt,
                 createdAt = now,
                 modifiedAt = now,
+                favorite = seriesTask.favorite,
+                folderId = seriesTask.folderId,
+                categoryId = seriesTask.categoryId,
             )
         )
         replaceSubtasks(
@@ -399,6 +418,9 @@ private fun TaskWithDetails.toDomain(): Task {
         subtasks = subtasks.sortedBy { it.position }.map {
             Subtask(it.id, it.text, it.completed)
         },
+        favorite = task.favorite,
+        folderId = task.folderId,
+        categoryId = task.categoryId,
     )
 }
 
@@ -419,4 +441,7 @@ private fun Task.toEntity(): TaskEntity = TaskEntity(
     occurrenceAt = occurrenceAt,
     createdAt = createdAt,
     modifiedAt = modifiedAt,
+    favorite = favorite,
+    folderId = folderId,
+    categoryId = categoryId,
 )

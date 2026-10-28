@@ -16,13 +16,23 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.nexonote.domain.model.ThemeMode
 import com.example.nexonote.ui.NexoNoteApp
 import com.example.nexonote.ui.NexoViewModel
+import com.example.nexonote.ui.OrganizationFactories
 import com.example.nexonote.ui.dashboard.DashboardViewModel
 import com.example.nexonote.ui.notes.NoteEditorViewModel
 import com.example.nexonote.ui.notes.NotesViewModel
+import com.example.nexonote.ui.organization.FavoritesViewModel
+import com.example.nexonote.ui.organization.FoldersViewModel
+import com.example.nexonote.ui.organization.SearchViewModel
+import com.example.nexonote.ui.organization.StatisticsViewModel
 import com.example.nexonote.ui.tables.TableDetailViewModel
 import com.example.nexonote.ui.tables.TablesViewModel
 import com.example.nexonote.ui.tasks.TaskEditorViewModel
 import com.example.nexonote.ui.tasks.TaskListViewModel
+import com.example.nexonote.ui.transfer.BackupViewModel
+import com.example.nexonote.ui.transfer.ExportViewModel
+import com.example.nexonote.ui.transfer.ImportViewModel
+import com.example.nexonote.ui.transfer.RestoreViewModel
+import com.example.nexonote.ui.transfer.TransferFactories
 import com.example.nexonote.ui.theme.NexoNoteTheme
 
 class MainActivity : ComponentActivity() {
@@ -36,8 +46,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        pendingTaskId.value = intent.taskIdExtra()
-        pendingEventDate.value = intent?.getLongExtra(EXTRA_EVENT_DATE, 0)?.takeIf { it != 0L }
+        if (savedInstanceState == null) {
+            pendingTaskId.value = intent.taskIdExtra()
+            pendingEventDate.value = intent?.getLongExtra(EXTRA_EVENT_DATE, 0)?.takeIf { it != 0L }
+        }
         enableEdgeToEdge()
         val container = (application as NexoNoteApplication).container
         setContent {
@@ -54,6 +66,22 @@ class MainActivity : ComponentActivity() {
             val tablesFactory = remember(container) { TablesViewModel.factory(container) }
             val tableDetailFactory = remember(container) {
                 { tableId: Long -> TableDetailViewModel.factory(tableId, container) }
+            }
+            val organizationFactories = remember(container) {
+                OrganizationFactories(
+                    folders = FoldersViewModel.factory(container),
+                    favorites = FavoritesViewModel.factory(container),
+                    search = SearchViewModel.factory(container),
+                    statistics = StatisticsViewModel.factory(container),
+                )
+            }
+            val transferFactories = remember(container) {
+                TransferFactories(
+                    export = ExportViewModel.factory(container),
+                    importer = ImportViewModel.factory(container),
+                    backup = BackupViewModel.factory(container),
+                    restore = { uri -> RestoreViewModel.factory(container, uri) },
+                )
             }
             val model: NexoViewModel = viewModel(factory = appFactory)
             val state by model.uiState.collectAsStateWithLifecycle()
@@ -84,6 +112,8 @@ class MainActivity : ComponentActivity() {
                     calendarFactory = remember(container) { com.example.nexonote.ui.calendar.CalendarViewModel.factory(container) },
                     pendingEventDate = pendingEventDate.value,
                     onPendingEventHandled = { pendingEventDate.value = null },
+                    organizationFactories = organizationFactories,
+                    transferFactories = transferFactories,
                 )
             }
         }

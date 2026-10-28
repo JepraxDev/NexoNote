@@ -16,7 +16,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -34,17 +38,25 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.example.nexonote.domain.model.Category
 import com.example.nexonote.domain.model.CustomTable
 import com.example.nexonote.domain.model.DEFAULT_TABLE_COLOR
+import com.example.nexonote.domain.model.Folder
 import com.example.nexonote.domain.model.TableIcon
 import com.example.nexonote.domain.model.TableInput
+import com.example.nexonote.domain.model.Tag
 import com.example.nexonote.domain.model.validateTableInput
+import com.example.nexonote.ui.organization.OrganizationFields
+import com.example.nexonote.ui.organization.TagSelectionSection
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TableFormDialog(
     initial: CustomTable?,
     busy: Boolean,
+    folders: List<Folder> = emptyList(),
+    categories: List<Category> = emptyList(),
+    availableTags: List<Tag> = emptyList(),
     onDismiss: () -> Unit,
     onConfirm: (TableInput) -> Unit,
 ) {
@@ -52,9 +64,22 @@ fun TableFormDialog(
     var description by remember(initial?.id) { mutableStateOf(initial?.description.orEmpty()) }
     var icon by remember(initial?.id) { mutableStateOf(initial?.icon ?: TableIcon.GRID) }
     var color by remember(initial?.id) { mutableStateOf(initial?.color ?: DEFAULT_TABLE_COLOR) }
+    var folderId by remember(initial?.id) { mutableStateOf(initial?.folderId) }
+    var categoryId by remember(initial?.id) { mutableStateOf(initial?.categoryId) }
+    var favorite by remember(initial?.id) { mutableStateOf(initial?.favorite ?: false) }
+    var tags by remember(initial?.id) { mutableStateOf(initial?.tags.orEmpty()) }
     var localError by remember { mutableStateOf<String?>(null) }
 
-    val input = TableInput(name = name, description = description, icon = icon, color = color)
+    val input = TableInput(
+        name = name,
+        description = description,
+        icon = icon,
+        color = color,
+        folderId = folderId,
+        categoryId = categoryId,
+        favorite = favorite,
+        tags = tags,
+    )
 
     AlertDialog(
         onDismissRequest = { if (!busy) onDismiss() },
@@ -141,6 +166,38 @@ fun TableFormDialog(
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
+                FilterChip(
+                    selected = favorite,
+                    onClick = { favorite = !favorite },
+                    label = { Text("Favorito") },
+                    leadingIcon = {
+                        Icon(
+                            if (favorite) Icons.Outlined.Star else Icons.Outlined.StarBorder,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    },
+                )
+                HorizontalDivider()
+                OrganizationFields(
+                    folderId = folderId,
+                    categoryId = categoryId,
+                    folders = folders,
+                    categories = categories,
+                    onFolderChange = { folderId = it },
+                    onCategoryChange = { categoryId = it },
+                )
+                TagSelectionSection(
+                    selected = tags,
+                    available = availableTags,
+                    onAdd = { value ->
+                        val normalized = value.trim().lowercase()
+                        if (normalized.isNotEmpty() && normalized !in tags && tags.size < 20) {
+                            tags = tags + normalized
+                        }
+                    },
+                    onRemove = { value -> tags = tags - value },
+                )
             }
         },
         confirmButton = {

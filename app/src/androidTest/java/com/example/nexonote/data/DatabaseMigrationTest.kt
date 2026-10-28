@@ -8,6 +8,8 @@ import com.example.nexonote.data.local.MIGRATION_2_3
 import com.example.nexonote.data.local.MIGRATION_3_4
 import com.example.nexonote.data.local.MIGRATION_4_5
 import com.example.nexonote.data.local.MIGRATION_5_6
+import com.example.nexonote.data.local.MIGRATION_6_7
+import com.example.nexonote.data.local.MIGRATION_7_8
 import com.example.nexonote.data.local.NexoDatabase
 import org.junit.Assert.*
 import org.junit.Rule
@@ -197,6 +199,54 @@ class DatabaseMigrationTest {
             db.query("SELECT COUNT(*) FROM custom_rows").use { cursor ->
                 assertTrue(cursor.moveToFirst())
                 assertEquals(0, cursor.getInt(0))
+            }
+        }
+    }
+
+    @Test fun migrationToOrganizationKeepsContentAndAddsOptionalColumns() {
+        val name = "migration-organization-test"
+        helper.createDatabase(name, 7).apply {
+            execSQL(
+                "INSERT INTO notes (id, title, content, type, color, pinned, favorite, archived, trashed, createdAt) " +
+                    "VALUES (1, 'Nota previa', 'Contenido', 'TEXT', 'DEFAULT', 0, 1, 0, 0, 100)"
+            )
+            execSQL("INSERT INTO labels (id, name) VALUES (1, 'trabajo')")
+            execSQL("INSERT INTO note_labels (noteId, labelId) VALUES (1, 1)")
+            close()
+        }
+        helper.runMigrationsAndValidate(name, 8, true, MIGRATION_7_8).use { db ->
+            db.query("SELECT title, favorite, folderId, categoryId FROM notes WHERE id = 1").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals("Nota previa", cursor.getString(0))
+                assertEquals(1, cursor.getInt(1))
+                assertTrue(cursor.isNull(2))
+                assertTrue(cursor.isNull(3))
+            }
+            db.query("SELECT color FROM labels WHERE id = 1").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals("#6750A4", cursor.getString(0))
+            }
+            db.query("SELECT COUNT(*) FROM note_labels").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals(1, cursor.getInt(0))
+            }
+            listOf("folders", "categories", "saved_views", "table_labels", "event_labels").forEach { table ->
+                db.query("SELECT COUNT(*) FROM $table").use { cursor ->
+                    assertTrue(cursor.moveToFirst())
+                    assertEquals(0, cursor.getInt(0))
+                }
+            }
+            db.query(
+                "SELECT COUNT(*) FROM pragma_table_info('tasks') WHERE name IN ('favorite', 'folderId', 'categoryId')"
+            ).use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals(3, cursor.getInt(0))
+            }
+            db.query(
+                "SELECT COUNT(*) FROM pragma_table_info('events') WHERE name IN ('favorite', 'folderId', 'categoryId')"
+            ).use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals(3, cursor.getInt(0))
             }
         }
     }

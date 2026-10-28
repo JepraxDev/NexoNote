@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Temporary files prepared for the Android Sharesheet. -->
+    <cache-path
+        name="exports"
+        path="exports/" />
+    <!-- Managed backups, exposed only through temporary URI grants. -->
+    <files-path
+        name="backups"
+        path="backups/" />
+</paths>

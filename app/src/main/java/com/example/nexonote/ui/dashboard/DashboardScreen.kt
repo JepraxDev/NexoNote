@@ -22,6 +22,7 @@ import com.example.nexonote.domain.model.RecentTableRow
 import com.example.nexonote.domain.model.Task
 import com.example.nexonote.domain.model.isTaskOverdue
 import com.example.nexonote.navigation.Destination
+import com.example.nexonote.ui.organization.OrganizationShortcuts
 import java.text.DateFormat
 import java.util.Calendar
 import java.util.Date
@@ -37,6 +38,7 @@ fun DashboardRoute(
     openNote: (Long) -> Unit,
     openTask: (Long) -> Unit,
     openTable: (Long) -> Unit,
+    onOpenOrganization: (String) -> Unit,
     calendarContent: @Composable () -> Unit = {},
 ) {
     val state by model.uiState.collectAsStateWithLifecycle()
@@ -50,6 +52,7 @@ fun DashboardRoute(
         model::retry,
         model::saveName,
         model::clearNameError,
+        onOpenOrganization,
         calendarContent,
     )
 }
@@ -65,6 +68,7 @@ fun DashboardScreen(
     retry: () -> Unit,
     saveName: (String, () -> Unit) -> Unit,
     clearNameError: () -> Unit,
+    onOpenOrganization: (String) -> Unit,
     calendarContent: @Composable () -> Unit = {},
 ) {
     var editingName by rememberSaveable { mutableStateOf(false) }
@@ -140,6 +144,9 @@ fun DashboardScreen(
                 }
                 item(key = "actions", span = { GridItemSpan(maxLineSpan) }) { QuickActions(create) }
                 item(key = "calendar", span = { GridItemSpan(maxLineSpan) }) { calendarContent() }
+                item(key = "organization", span = { GridItemSpan(maxLineSpan) }) {
+                    OrganizationShortcuts(onOpen = onOpenOrganization)
+                }
                 item(key = "recentNotes", span = { GridItemSpan(if (columns == 4) 2 else maxLineSpan) }) {
                     EntryListCard(
                         title = "Notas recientes",

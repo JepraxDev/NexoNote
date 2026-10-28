@@ -18,6 +18,10 @@ data class EventInput(
     val recurrence: TaskRecurrence = TaskRecurrence.NONE,
     val repeatUntil: Long? = null,
     val reminderMinutes: Int? = null,
+    val favorite: Boolean = false,
+    val folderId: Long? = null,
+    val categoryId: Long? = null,
+    val tags: List<String> = emptyList(),
 )
 
 data class CalendarEvent(

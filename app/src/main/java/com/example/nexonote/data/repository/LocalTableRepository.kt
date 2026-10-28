@@ -9,8 +9,10 @@ import com.example.nexonote.data.local.CustomColumnEntity
 import com.example.nexonote.data.local.CustomRowEntity
 import com.example.nexonote.data.local.CustomTableEntity
 import com.example.nexonote.data.local.EntryEntity
+import com.example.nexonote.data.local.LabelEntity
 import com.example.nexonote.data.local.NexoDatabase
 import com.example.nexonote.data.local.RecentTableRowEntity
+import com.example.nexonote.data.local.TableLabelCrossRef
 import com.example.nexonote.data.local.TableSummaryEntity
 import com.example.nexonote.domain.model.ColumnInput
 import com.example.nexonote.domain.model.ColumnOption
@@ -51,9 +53,20 @@ class LocalTableRepository(
 ) : TableRepository {
     private val tableDao = database.tableDao()
     private val entryDao = database.entryDao()
+    private val organizationDao = database.organizationDao()
 
-    override val tables: Flow<List<CustomTable>> = tableDao.observeTables().map { tables ->
-        tables.map(TableSummaryEntity::toDomain)
+    override val tables: Flow<List<CustomTable>> = combine(
+        tableDao.observeTables(),
+        tableDao.observeAllTableLabels(),
+        organizationDao.observeTags(),
+    ) { tables, links, tagRows ->
+        val names = tagRows.associate { it.label.id to it.label.name }
+        val byTable = links.groupBy { it.tableId }
+        tables.map { summary ->
+            summary.toDomain().copy(
+                tags = byTable[summary.id].orEmpty().mapNotNull { names[it.labelId] }.sorted(),
+            )
+        }
     }
 
     override val recentRows: Flow<List<RecentTableRow>> = tableDao.observeRecentRows(5).map { rows ->
@@ -81,6 +94,16 @@ class LocalTableRepository(
 
     override suspend fun createTable(input: TableInput): Long {
         validateTableInput(input)?.let { throw IllegalArgumentException(it) }
+        if (input.folderId != null) {
+            require(database.organizationDao().findFolder(input.folderId) != null) {
+                "La carpeta seleccionada ya no existe."
+            }
+        }
+        if (input.categoryId != null) {
+            require(database.organizationDao().findCategory(input.categoryId) != null) {
+                "La categoría seleccionada ya no existe."
+            }
+        }
         val name = input.name.trim()
         val now = clock()
         var tableId = 0L
@@ -101,6 +124,9 @@ class LocalTableRepository(
                     color = input.color.lowercase(Locale.ROOT),
                     createdAt = now,
                     modifiedAt = now,
+                    folderId = input.folderId,
+                    categoryId = input.categoryId,
+                    favorite = input.favorite,
                 )
             )
             tableDao.insertColumn(
@@ -117,12 +143,23 @@ class LocalTableRepository(
             entryDao.insertActivity(
                 ActivityEntity(entryId = tableId, kind = "TABLE_CREATED", occurredAt = now)
             )
+            replaceTags(tableId, input.tags)
         }
         return tableId
     }
 
     override suspend fun updateTable(id: Long, input: TableInput) {
         validateTableInput(input)?.let { throw IllegalArgumentException(it) }
+        if (input.folderId != null) {
+            require(database.organizationDao().findFolder(input.folderId) != null) {
+                "La carpeta seleccionada ya no existe."
+            }
+        }
+        if (input.categoryId != null) {
+            require(database.organizationDao().findCategory(input.categoryId) != null) {
+                "La categoría seleccionada ya no existe."
+            }
+        }
         val name = input.name.trim()
         val now = clock()
         database.withTransaction {
@@ -134,9 +171,13 @@ class LocalTableRepository(
                     icon = input.icon.name,
                     color = input.color.lowercase(Locale.ROOT),
                     modifiedAt = now,
+                    folderId = input.folderId,
+                    categoryId = input.categoryId,
+                    favorite = input.favorite,
                 )
             )
             entryDao.updateTableSummary(id, name, now)
+            replaceTags(id, input.tags)
         }
     }
 
@@ -176,7 +217,8 @@ class LocalTableRepository(
                             id = newColumnId,
                             tableId = newId,
                             defaultValue = column.defaultValue?.split(',')?.joinToString(",") { raw ->
-                                optionMap.getValue(raw.trim().toLong()).toString()
+                                val token = raw.trim()
+                                token.toLongOrNull()?.let { optionMap[it]?.toString() } ?: token
                             },
                         )
                     )
@@ -464,6 +506,14 @@ class LocalTableRepository(
                 } else if (next != value) {
                     tableDao.insertCell(cell.copy(value = next, updatedAt = now))
                 }
+            }
+            val defaultTokens = column.defaultValue?.split(',')?.map { it.trim() } ?: emptyList()
+            if (defaultTokens.contains(optionId.toString())) {
+                val nextDefault = defaultTokens
+                    .filter { it != optionId.toString() }
+                    .joinToString(",")
+                    .ifBlank { null }
+                tableDao.updateColumn(column.copy(defaultValue = nextDefault))
             }
             tableDao.deleteOption(optionId)
             touch(column.tableId, now)
@@ -831,6 +881,22 @@ class LocalTableRepository(
     private fun escapeLike(value: String): String =
         value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
+    private suspend fun replaceTags(tableId: Long, tags: List<String>) {
+        val dao = database.organizationDao()
+        dao.deleteTableLabels(tableId)
+        tags.map { it.trim().lowercase(Locale.ROOT).take(30) }
+            .filter(String::isNotEmpty)
+            .distinct()
+            .take(20)
+            .forEach { name ->
+                val label = dao.findTagByName(name) ?: run {
+                    val id = dao.insertTag(LabelEntity(name = name))
+                    if (id > 0) LabelEntity(id = id, name = name) else dao.findTagByName(name)
+                }
+                label?.let { dao.insertTableLabel(TableLabelCrossRef(tableId, it.id)) }
+            }
+    }
+
     private companion object {
         val optionTypes = setOf(ColumnType.SELECT, ColumnType.MULTISELECT, ColumnType.STATUS)
     }
@@ -846,6 +912,9 @@ private fun TableSummaryEntity.toDomain(): CustomTable = CustomTable(
     rowCount = rowCount,
     createdAt = createdAt,
     modifiedAt = modifiedAt,
+    favorite = favorite,
+    folderId = folderId,
+    categoryId = categoryId,
 )
 
 private fun CustomTableEntity.toDomain(): CustomTable = CustomTable(
@@ -856,6 +925,9 @@ private fun CustomTableEntity.toDomain(): CustomTable = CustomTable(
     color = color,
     createdAt = createdAt,
     modifiedAt = modifiedAt,
+    favorite = favorite,
+    folderId = folderId,
+    categoryId = categoryId,
 )
 
 private fun CustomColumnEntity.toDomain(options: List<ColumnOptionEntity> = emptyList()): CustomColumn =

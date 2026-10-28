@@ -5,7 +5,8 @@ import com.example.nexonote.data.local.*
 import com.example.nexonote.domain.model.*
 import com.example.nexonote.domain.repository.EventRepository
 import com.example.nexonote.domain.repository.EventReminderScheduler
-import kotlinx.coroutines.flow.map
+import java.util.Locale
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -15,14 +16,35 @@ class LocalEventRepository(
     private val clock: () -> Long = System::currentTimeMillis,
 ) : EventRepository {
     private val dao = database.eventDao()
+    private val organizationDao = database.organizationDao()
     private val mutex = Mutex()
-    override fun observeAll() = dao.observeAll().map { list -> list.map { it.domain() } }
+    override fun observeAll() = combine(
+        dao.observeAll(),
+        dao.observeAllLabels(),
+        organizationDao.observeTags(),
+    ) { events, links, tagRows ->
+        val labels = tagRows.associate { it.label.id to it.label.name }
+        val byEvent = links.groupBy { it.eventId }
+        events.map { entity ->
+            entity.domain(byEvent[entity.id].orEmpty().mapNotNull { labels[it.labelId] }.sorted())
+        }
+    }
 
     override suspend fun save(input: EventInput, id: Long?): Long = mutex.withLock {
         validateEvent(input)?.let { throw IllegalArgumentException(it) }
+        if (input.folderId != null) {
+            require(database.organizationDao().findFolder(input.folderId) != null) {
+                "La carpeta seleccionada ya no existe."
+            }
+        }
+        if (input.categoryId != null) {
+            require(database.organizationDao().findCategory(input.categoryId) != null) {
+                "La categoría seleccionada ya no existe."
+            }
+        }
         val removed = mutableListOf<Long>()
         val saved = database.withTransaction {
-            if (id == null) dao.insert(input.entity()) else {
+            val eventId = if (id == null) dao.insert(input.entity()) else {
                 val old = requireNotNull(dao.find(id)) { "El evento ya no existe." }
                 if (old.parentId == null) {
                     removed.addAll(dao.all().filter { it.parentId == id }.map { it.id })
@@ -33,6 +55,8 @@ class LocalEventRepository(
                     recurrence = if (old.parentId != null) TaskRecurrence.NONE.name else input.recurrence.name))
                 id
             }
+            replaceTags(eventId, input.tags)
+            eventId
         }
         removed.forEach(scheduler::cancel)
         rescheduleLocked()
@@ -54,7 +78,9 @@ class LocalEventRepository(
             val replacement = input.copy(recurrence = TaskRecurrence.NONE, repeatUntil = null)
                 .entity(old?.id ?: 0, (old?.revision ?: 0) + 1)
                 .copy(parentId = seriesId, originalStart = start, cancelled = cancelled)
-            if (old == null) dao.insert(replacement) else { dao.update(replacement); old.id }
+            val id = if (old == null) dao.insert(replacement) else { dao.update(replacement); old.id }
+            replaceTags(id, input.tags)
+            id
         }
 
     override suspend fun deleteOccurrence(seriesId: Long, originalStart: Long) = mutex.withLock {
@@ -74,6 +100,22 @@ class LocalEventRepository(
     }
 
     override suspend fun rescheduleReminders() = mutex.withLock { rescheduleLocked() }
+
+    private suspend fun replaceTags(eventId: Long, tags: List<String>) {
+        val organization = database.organizationDao()
+        dao.deleteEventLabels(eventId)
+        tags.map { it.trim().lowercase(Locale.ROOT).take(30) }
+            .filter(String::isNotEmpty)
+            .distinct()
+            .take(20)
+            .forEach { name ->
+                val label = organization.findTagByName(name) ?: run {
+                    val id = organization.insertTag(LabelEntity(name = name))
+                    if (id > 0) LabelEntity(id = id, name = name) else organization.findTagByName(name)
+                }
+                label?.let { dao.insertEventLabel(EventLabelCrossRef(eventId, it.id)) }
+            }
+    }
 
     private suspend fun rescheduleLocked() {
         val events = dao.all().map { it.domain() }

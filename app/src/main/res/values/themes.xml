@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.NexoNote" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- Platform theme used only before Compose draws. Compose owns the real Material 3 colors. -->
+    <style name="Theme.NexoNote" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/splash_background</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
 </resources>

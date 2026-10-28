@@ -50,6 +50,9 @@ data class Task(
     val modifiedAt: Long? = null,
     val labels: List<String> = emptyList(),
     val subtasks: List<Subtask> = emptyList(),
+    val favorite: Boolean = false,
+    val folderId: Long? = null,
+    val categoryId: Long? = null,
 ) {
     val displayTitle: String get() = title.ifBlank { "Tarea sin título" }
     val isCompleted: Boolean get() = status == TaskStatus.COMPLETED
@@ -72,6 +75,9 @@ data class TaskInput(
     val recurrenceEndAt: Long? = null,
     val labels: List<String> = emptyList(),
     val subtasks: List<SubtaskDraft> = emptyList(),
+    val favorite: Boolean = false,
+    val folderId: Long? = null,
+    val categoryId: Long? = null,
 )
 
 data class TaskFilters(

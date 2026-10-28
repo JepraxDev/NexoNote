@@ -37,6 +37,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.nexonote.domain.model.NoteColor
+import com.example.nexonote.ui.organization.OrganizationFields
 import com.example.nexonote.domain.model.NoteType
 import java.text.DateFormat
 import java.util.Date
@@ -83,6 +84,8 @@ fun NoteEditorRoute(model: NoteEditorViewModel, onBack: () -> Unit) {
         onRemoveChecklistItem = model::removeChecklistItem,
         onAddLabel = model::addLabel,
         onRemoveLabel = model::removeLabel,
+        onFolderChange = model::setFolder,
+        onCategoryChange = model::setCategory,
         onArchive = { model.archiveAndExit(onBack) },
         onTrash = { model.trashAndExit(onBack) },
     )
@@ -106,6 +109,8 @@ fun NoteEditorScreen(
     onRemoveChecklistItem: (Long) -> Unit,
     onAddLabel: (String) -> Unit,
     onRemoveLabel: (String) -> Unit,
+    onFolderChange: (Long?) -> Unit,
+    onCategoryChange: (Long?) -> Unit,
     onArchive: () -> Unit,
     onTrash: () -> Unit,
 ) {
@@ -284,6 +289,16 @@ fun NoteEditorScreen(
                         }
                     }
                 }
+                item(key = "organization") {
+                    OrganizationFields(
+                        folderId = state.folderId,
+                        categoryId = state.categoryId,
+                        folders = state.folders,
+                        categories = state.categories,
+                        onFolderChange = onFolderChange,
+                        onCategoryChange = onCategoryChange,
+                    )
+                }
                 item(key = "labels") {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Etiquetas", style = MaterialTheme.typography.titleMedium)
@@ -324,7 +339,10 @@ fun NoteEditorScreen(
                 item(key = "color") {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Color", style = MaterialTheme.typography.titleMedium)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
                             NoteColor.entries.forEach { color ->
                                 ColorChoice(
                                     color = color,
@@ -391,7 +409,7 @@ private fun ColorChoice(color: NoteColor, selected: Boolean, onClick: () -> Unit
     }
     Box(
         Modifier
-            .size(42.dp)
+            .size(48.dp)
             .clip(CircleShape)
             .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface)
             .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)

@@ -45,7 +45,13 @@ fun CalendarRoute(model: CalendarViewModel, onBack: () -> Unit, openTask: (Long)
     var creating by rememberSaveable { mutableStateOf(false) }
     var scope by rememberSaveable { mutableStateOf<String?>(null) }
     var datePicker by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(initialDate) { initialDate?.let(model::select) }
+    var initialDateApplied by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(initialDate) {
+        if (!initialDateApplied && initialDate != null) {
+            model.select(initialDate)
+            initialDateApplied = true
+        }
+    }
     val editedEvent = state.events.firstOrNull { it.id == editingId }
     val target = editedEvent?.let {
         EventOccurrence(it, editingStart, editingEnd)
@@ -108,8 +114,13 @@ fun CalendarRoute(model: CalendarViewModel, onBack: () -> Unit, openTask: (Long)
         else if (series) state.events.first { it.id == (target.event.parentId ?: target.event.id) }.input
         else target.event.input.copy(startAt = target.startAt, endAt = target.endAt, recurrence = TaskRecurrence.NONE, repeatUntil = null)
         key(editingId, editingStart, scope, creating) {
-            EventEditor(initial, target != null, series, busy, error, dismiss,
-                { model.save(it, target, series, dismiss) }, { target?.let { model.delete(it, series, dismiss) } })
+            EventEditor(initial, target != null, series, busy, error,
+                folders = state.folders,
+                categories = state.categories,
+                availableTags = state.tags,
+                onDismiss = dismiss,
+                onSave = { model.save(it, target, series, dismiss) },
+                onDelete = { target?.let { model.delete(it, series, dismiss) } })
         }
     }
 }

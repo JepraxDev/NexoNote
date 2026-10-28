@@ -1,19 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
-   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
+   Backup and device-transfer rules for Android 12+ (API 31+).
+   Cloud backups skip managed backups and attachments to stay inside the 25 MB quota.
+   Device transfer keeps attachments because there is no quota and the user expects a
+   full migration; managed backups are still excluded because they can be recreated.
 -->
 <data-extraction-rules>
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <exclude domain="file" path="backups" />
+        <exclude domain="file" path="attachments" />
     </cloud-backup>
-    <!--
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <exclude domain="file" path="backups" />
     </device-transfer>
-    -->
 </data-extraction-rules>

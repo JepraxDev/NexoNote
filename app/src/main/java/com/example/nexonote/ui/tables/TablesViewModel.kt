@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.nexonote.di.AppContainer
 import com.example.nexonote.domain.model.TableInput
+import com.example.nexonote.domain.repository.OrganizationRepository
 import com.example.nexonote.domain.repository.TableRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -29,14 +30,25 @@ private data class TablesOperation(
 @OptIn(ExperimentalCoroutinesApi::class)
 class TablesViewModel(
     private val repository: TableRepository,
+    private val organization: OrganizationRepository,
 ) : ViewModel() {
     private val query = MutableStateFlow("")
     private val retry = MutableStateFlow(0)
     private val operation = MutableStateFlow(TablesOperation())
 
     private val content = retry.flatMapLatest {
-        combine(repository.tables, query) { tables, value ->
-            tablesState(tables = tables, query = value)
+        combine(
+            repository.tables,
+            query,
+            organization.folders,
+            organization.categories,
+            organization.tags,
+        ) { tables, value, folders, categories, tags ->
+            tablesState(tables = tables, query = value).copy(
+                folders = folders,
+                categories = categories,
+                tags = tags,
+            )
         }.onStart {
             emit(TablesUiState(query = query.value))
         }.catch {
@@ -106,7 +118,7 @@ class TablesViewModel(
     companion object {
         fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {
             initializer {
-                TablesViewModel(container.tableRepository)
+                TablesViewModel(container.tableRepository, container.organizationRepository)
             }
         }
     }

@@ -20,6 +20,8 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Notifications
@@ -42,6 +44,7 @@ import com.example.nexonote.domain.model.TaskPriority
 import com.example.nexonote.domain.model.TaskRecurrence
 import com.example.nexonote.domain.model.TaskStatus
 import com.example.nexonote.domain.model.taskReminderAt
+import com.example.nexonote.ui.organization.OrganizationFields
 import java.text.DateFormat as AndroidDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -85,6 +88,9 @@ fun TaskEditorRoute(model: TaskEditorViewModel, onBack: () -> Unit) {
         onRecurrenceEndChange = model::setRecurrenceEnd,
         onAddLabel = model::addLabel,
         onRemoveLabel = model::removeLabel,
+        onFolderChange = model::setFolder,
+        onCategoryChange = model::setCategory,
+        onToggleFavorite = model::toggleFavorite,
         onAddSubtask = model::addSubtask,
         onSubtaskTextChange = model::setSubtaskText,
         onSubtaskCompletedChange = model::setSubtaskCompleted,
@@ -132,6 +138,9 @@ fun TaskEditorScreen(
     onRecurrenceEndChange: (Long?) -> Unit,
     onAddLabel: (String) -> Unit,
     onRemoveLabel: (String) -> Unit,
+    onFolderChange: (Long?) -> Unit,
+    onCategoryChange: (Long?) -> Unit,
+    onToggleFavorite: () -> Unit,
     onAddSubtask: () -> Unit,
     onSubtaskTextChange: (Long, String) -> Unit,
     onSubtaskCompletedChange: (Long, Boolean) -> Unit,
@@ -184,6 +193,18 @@ fun TaskEditorScreen(
                 },
                 actions = {
                     if (!state.loading && !state.missing) {
+                        IconButton(onClick = onToggleFavorite) {
+                            Icon(
+                                if (state.favorite) Icons.Outlined.Star else Icons.Outlined.StarBorder,
+                                contentDescription = if (state.favorite) {
+                                    "Quitar de favoritos"
+                                } else {
+                                    "Marcar como favorito"
+                                },
+                                tint = if (state.favorite) MaterialTheme.colorScheme.tertiary
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                         IconButton(
                             onClick = onSave,
                             enabled = !state.saving,
@@ -420,6 +441,16 @@ fun TaskEditorScreen(
                                 )
                             }
                         }
+                    }
+                    item(key = "organization") {
+                        OrganizationFields(
+                            folderId = state.folderId,
+                            categoryId = state.categoryId,
+                            folders = state.folders,
+                            categories = state.categories,
+                            onFolderChange = onFolderChange,
+                            onCategoryChange = onCategoryChange,
+                        )
                     }
                     item(key = "labels") {
                         LabelsSection(

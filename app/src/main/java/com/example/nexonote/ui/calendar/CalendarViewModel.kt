@@ -19,12 +19,24 @@ data class CalendarUiState(
     val from: Long = 0, val until: Long = 0,
     val activities: List<CalendarActivity> = emptyList(), val upcoming: List<CalendarActivity> = emptyList(),
     val events: List<CalendarEvent> = emptyList(),
+    val folders: List<Folder> = emptyList(),
+    val categories: List<Category> = emptyList(),
+    val tags: List<Tag> = emptyList(),
+)
+
+private data class CalendarData(
+    val events: List<CalendarEvent>,
+    val tasks: List<Task>,
+    val folders: List<Folder>,
+    val categories: List<Category>,
+    val tags: List<Tag>,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class CalendarViewModel(
     private val events: EventRepository,
     tasks: TaskRepository,
+    private val organization: OrganizationRepository,
     private val saved: SavedStateHandle,
 ) : ViewModel() {
     private val selected = saved.getStateFlow("selected", System.currentTimeMillis())
@@ -36,22 +48,30 @@ class CalendarViewModel(
     val busy: StateFlow<Boolean> = busyState.asStateFlow()
     val operationError: StateFlow<String?> = errorState.asStateFlow()
     private val clock = flow { while (true) { emit(System.currentTimeMillis()); delay(30_000) } }
-    private val data = combine(events.observeAll(), tasks.tasks) { e, t -> e to t }
+    private val data = combine(
+        combine(events.observeAll(), tasks.tasks) { eventList, taskList -> eventList to taskList },
+        combine(organization.folders, organization.categories, organization.tags) { folders, categories, tags ->
+            Triple(folders, categories, tags)
+        },
+    ) { (eventList, taskList), (folders, categories, tags) ->
+        CalendarData(eventList, taskList, folders, categories, tags)
+    }
     private val selection = combine(selected, mode, filter) { d, m, f -> Triple(d, CalendarMode.valueOf(m), CalendarFilter.valueOf(f)) }
     val state = retry.flatMapLatest {
-        combine(data, selection, clock) { (eventList, taskList), (day, view, kind), now ->
+        combine(data, selection, clock) { content, (day, view, kind), now ->
             val start = when (view) {
                 CalendarMode.MONTH -> calendarWeek(eventCalendar(day).apply { set(Calendar.DAY_OF_MONTH, 1) }.timeInMillis)
                 CalendarMode.WEEK -> calendarWeek(day)
                 CalendarMode.DAY -> calendarDay(day)
             }
             val end = calendarAdd(start, Calendar.DAY_OF_YEAR, when (view) { CalendarMode.MONTH -> 42; CalendarMode.WEEK -> 7; else -> 1 })
-            val activities = calendarActivities(eventList, taskList, start, end).filter {
+            val activities = calendarActivities(content.events, content.tasks, start, end).filter {
                 when (kind) { CalendarFilter.ALL -> true; CalendarFilter.TASKS -> it.task != null; CalendarFilter.EVENTS -> it.event != null }
             }
             CalendarUiState(false, selected = day, now = now, mode = view, filter = kind,
-                from = start, until = end, activities = activities, events = eventList,
-                upcoming = calendarActivities(eventList, taskList, calendarDay(now), calendarAdd(now, Calendar.DAY_OF_YEAR, 7))
+                from = start, until = end, activities = activities, events = content.events,
+                folders = content.folders, categories = content.categories, tags = content.tags,
+                upcoming = calendarActivities(content.events, content.tasks, calendarDay(now), calendarAdd(now, Calendar.DAY_OF_YEAR, 7))
                     .filter { it.endAt >= now && it.task?.isCompleted != true }.take(4))
         }.catch { emit(CalendarUiState(loading = false, error = "No se pudo cargar el calendario. Inténtalo de nuevo.")) }
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CalendarUiState())
@@ -75,7 +95,11 @@ class CalendarViewModel(
     }
     fun delete(target: EventOccurrence, series: Boolean, done: () -> Unit) = perform(done) {
         if (series) events.delete(target.event.parentId ?: target.event.id)
-        else if (target.event.parentId != null) events.deleteOccurrence(target.event.parentId, requireNotNull(target.event.originalStart))
+        else if (target.event.parentId != null) {
+            val original = target.event.originalStart
+            if (original == null) events.delete(target.event.id)
+            else events.deleteOccurrence(target.event.parentId, original)
+        }
         else if (target.event.input.recurrence != TaskRecurrence.NONE) events.deleteOccurrence(target.event.id, target.startAt)
         else events.delete(target.event.id)
     }
@@ -92,7 +116,7 @@ class CalendarViewModel(
     }
     companion object {
         fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {
-            initializer { CalendarViewModel(container.eventRepository, container.taskRepository, createSavedStateHandle()) }
+            initializer { CalendarViewModel(container.eventRepository, container.taskRepository, container.organizationRepository, createSavedStateHandle()) }
         }
     }
 }

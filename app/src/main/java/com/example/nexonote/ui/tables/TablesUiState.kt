@@ -1,6 +1,9 @@
 package com.example.nexonote.ui.tables
 
+import com.example.nexonote.domain.model.Category
 import com.example.nexonote.domain.model.CustomTable
+import com.example.nexonote.domain.model.Folder
+import com.example.nexonote.domain.model.Tag
 
 data class TablesUiState(
     val loading: Boolean = true,
@@ -9,6 +12,9 @@ data class TablesUiState(
     val query: String = "",
     val busy: Boolean = false,
     val operationError: String? = null,
+    val folders: List<Folder> = emptyList(),
+    val categories: List<Category> = emptyList(),
+    val tags: List<Tag> = emptyList(),
 ) {
     val visibleTables: List<CustomTable>
         get() {
